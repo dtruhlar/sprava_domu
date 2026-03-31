@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head><meta charset="utf-8">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans,system-ui,sans-serif);font-size:14px;color:var(--color-text-primary);background:transparent;line-height:1.5}
+:root{--blue:#1a5fb4;--green:#2e7d32;--red:#c62828;--orange:#e65100;--purple:#6a1b9a;--rad:8px;--rad2:12px}
+
+/* NAV */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:10px 0 14px;border-bottom:0.5px solid var(--color-border-tertiary);margin-bottom:14px}
+.app-title{font-size:17px;font-weight:500}
+.app-sub{font-size:12px;color:var(--color-text-secondary)}
+.nav{display:flex;gap:2px;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--rad2);padding:3px;flex-wrap:wrap}
+.nav button{flex:1;min-width:60px;padding:6px 8px;border:none;background:transparent;border-radius:6px;cursor:pointer;font-size:12px;font-weight:500;color:var(--color-text-secondary);transition:all .15s;white-space:nowrap}
+.nav button.active{background:var(--color-background-primary);color:var(--color-text-primary);border:0.5px solid var(--color-border-secondary)}
+.nav button:hover:not(.active){background:var(--color-background-primary)}
+
+/* PAGES */
+.page{display:none}.page.active{display:block}
+
+/* CARDS */
+.card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--rad2);padding:14px;margin-bottom:10px}
+.card-hd{font-size:11px;font-weight:500;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
+
+/* GRID */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+
+/* FORM */
+.fr{margin-bottom:9px}
+label{display:block;font-size:12px;color:var(--color-text-secondary);margin-bottom:3px}
+input,select,textarea{width:100%;padding:7px 10px;border:0.5px solid var(--color-border-secondary);border-radius:var(--rad);font-size:13px;background:var(--color-background-primary);color:var(--color-text-primary);outline:none;transition:border-color .15s}
+input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 0 2px rgba(26,95,180,.1)}
+textarea{resize:vertical;min-height:55px}
+input[type=checkbox]{width:auto}
+input[readonly]{background:var(--color-background-secondary);color:var(--color-text-secondary)}
+
+/* BUTTONS */
+.btn{padding:7px 14px;border:0.5px solid var(--color-border-secondary);border-radius:var(--rad);cursor:pointer;font-size:13px;font-weight:500;background:transparent;color:var(--color-text-primary);transition:all .15s}
+.btn:hover{background:var(--color-background-secondary)}
+.btn-p{background:var(--blue);color:#fff;border-color:var(--blue)}.btn-p:hover{background:#1348a0}
+.btn-sm{padding:4px 10px;font-size:12px}
+.btn-d{color:var(--red);border-color:var(--red)}.btn-d:hover{background:#ffebee}
+
+/* BADGES */
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500;white-space:nowrap}
+.b-green{background:#e8f5e9;color:#2e7d32}.b-blue{background:#e3f2fd;color:#1565c0}
+.b-orange{background:#fff3e0;color:#e65100}.b-red{background:#ffebee;color:#c62828}
+.b-gray{background:var(--color-background-secondary);color:var(--color-text-secondary)}
+.b-purple{background:#f3e5f5;color:#6a1b9a}
+
+/* ROWS */
+.t-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border:0.5px solid var(--color-border-tertiary);border-radius:var(--rad);margin-bottom:6px;cursor:pointer;transition:border-color .15s}
+.t-row:hover{border-color:var(--color-border-primary);background:var(--color-background-secondary)}
+.avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:500;font-size:13px;flex-shrink:0}
+.av-p{background:#e3f2fd;color:#1565c0}.av-c{background:#f3e5f5;color:#6a1b9a}
+.t-info{flex:1;min-width:0}
+.t-name{font-weight:500;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.t-sub{font-size:12px;color:var(--color-text-secondary)}
+
+/* STAT CARDS */
+.stat{background:var(--color-background-secondary);border-radius:var(--rad);padding:10px 12px}
+.stat-l{font-size:11px;color:var(--color-text-secondary);margin-bottom:3px}
+.stat-v{font-size:20px;font-weight:500}
+
+/* TABLE */
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:7px 10px;font-size:11px;font-weight:500;color:var(--color-text-secondary);border-bottom:0.5px solid var(--color-border-tertiary)}
+td{padding:7px 10px;border-bottom:0.5px solid var(--color-border-tertiary);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--color-background-secondary)}
+
+/* MISC */
+.divider{border:none;border-top:0.5px solid var(--color-border-tertiary);margin:10px 0}
+.empty{text-align:center;padding:28px;color:var(--color-text-secondary);font-size:13px}
+.sec-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.sec-t{font-size:15px;font-weight:500}
+.alert{padding:9px 13px;border-radius:var(--rad);font-size:13px;margin-bottom:7px;border:0.5px solid}
+.a-w{background:#fff8e1;color:#f57f17;border-color:#ffe082}
+.a-i{background:#e3f2fd;color:#1565c0;border-color:#90caf9}
+.a-s{background:#e8f5e9;color:#2e7d32;border-color:#a5d6a7}
+.a-e{background:#ffebee;color:#c62828;border-color:#ef9a9a}
+.pb{height:5px;background:var(--color-background-secondary);border-radius:3px;overflow:hidden;margin-top:4px}
+.pbf{height:100%;background:var(--blue);border-radius:3px;transition:width .3s}
+.tab-bar{display:flex;gap:0;margin-bottom:12px;border-bottom:0.5px solid var(--color-border-tertiary)}
+.tab{padding:7px 14px;cursor:pointer;font-size:13px;color:var(--color-text-secondary);border-bottom:2px solid transparent;margin-bottom:-0.5px;transition:all .15s}
+.tab.active{color:var(--blue);border-bottom-color:var(--blue);font-weight:500}
+.c-row{display:flex;align-items:center;gap:8px;padding:9px 11px;border:0.5px solid var(--color-border-tertiary);border-radius:var(--rad);margin-bottom:6px}
+.c-name{flex:1;font-size:13px;font-weight:500}
+.c-amt{font-size:13px;font-weight:500;min-width:90px;text-align:right;color:var(--blue)}
+.ft{font-size:12px;color:var(--color-text-secondary)}
+.fw{font-weight:500}
+.tc{color:var(--blue)}.tg{color:var(--green)}.tr{color:var(--red)}.to{color:var(--orange)}
+.flex{display:flex}.aic{align-items:center}.jbs{justify-content:space-between}.gap8{gap:8px}.gap4{gap:4px}
+.mt8{margin-top:8px}.mb8{margin-bottom:8px}
+
+/* MODAL */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto}
+.modal{background:var(--color-background-primary);border-radius:var(--rad2);padding:20px;width:100%;max-width:580px;border:0.5px solid var(--color-border-secondary);margin:auto;position:relative}
+.modal-t{font-size:16px;font-weight:500;margin-bottom:14px}
+.mf{display:flex;justify-content:flex-end;gap:8px;margin-top:14px;padding-top:12px;border-top:0.5px solid var(--color-border-tertiary)}
+
+/* API prep */
+.api-box{background:var(--color-background-secondary);border:1px dashed var(--color-border-secondary);border-radius:var(--rad);padding:12px}
+.code{font-family:var(--font-mono,monospace);font-size:11px;color:var(--color-text-secondary);background:var(--color-background-secondary);border-radius:var(--rad);padding:9px;margin-top:7px;word-break:break-all;white-space:pre-wrap}
+
+/* PRINT */
+@media print{.nav,.topbar button,.btn,.overlay{display:none!important}.page{display:block!important}}
+</style>
+</head>
+<body>
+<div style="padding:0 0 60px">
+
+<div class="topbar">
+  <div>
+    <div class="app-title" id="app-title">Správa nemovitosti</div>
+    <div class="app-sub" id="app-sub">Načítání...</div>
+  </div>
+  <div class="nav" id="mainNav">
+    <button class="active" onclick="nav('dash')">Přehled</button>
+    <button onclick="nav('tenants')">Nájemníci</button>
+    <button onclick="nav('meters')">Vodoměry</button>
+    <button onclick="nav('charges')">Poplatky</button>
+    <button onclick="nav('payments')">Platby</button>
+    <button onclick="nav('billing')">Vyúčtování</button>
+    <button onclick="nav('settings')">Nastavení</button>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div class="page active" id="p-dash">
+  <div class="g4" style="margin-bottom:12px" id="d-stats"></div>
+  <div class="g2">
+    <div>
+      <div class="card"><div class="card-hd">Upozornění — <span id="d-month-label"></span></div><div id="d-alerts"></div></div>
+      <div class="card"><div class="card-hd">Poslední platby</div><div id="d-lastpay"></div></div>
+    </div>
+    <div class="card"><div class="card-hd">Stav plateb nájemníků</div><div id="d-tenants"></div></div>
+  </div>
+</div>
+
+<!-- TENANTS -->
+<div class="page" id="p-tenants">
+  <div class="sec-hd"><div class="sec-t">Nájemníci a subjekty</div><button class="btn btn-p btn-sm" onclick="openTenantModal()">+ Přidat nájemníka</button></div>
+  <div class="tab-bar">
+    <div class="tab active" onclick="ftab(this,'all')">Všichni</div>
+    <div class="tab" onclick="ftab(this,'person')">Fyzické osoby</div>
+    <div class="tab" onclick="ftab(this,'company')">Právnické osoby</div>
+    <div class="tab" onclick="ftab(this,'inactive')">Archiv</div>
+  </div>
+  <div id="t-list"></div>
+</div>
+
+<!-- METERS -->
+<div class="page" id="p-meters">
+  <div class="sec-hd"><div class="sec-t">Odečty vodoměrů</div><button class="btn btn-p btn-sm" onclick="openMeterModal()">+ Zadat odečet</button></div>
+  <div class="card">
+    <div class="card-hd">Aktuální stav — cena vody: <span id="m-wprice"></span> Kč/m³</div>
+    <table><thead><tr><th>Nájemník / Byt</th><th>Poslední odečet</th><th>Datum</th><th>Spotřeba</th><th>Odhad nákladu</th></tr></thead>
+    <tbody id="m-current"></tbody></table>
+  </div>
+  <div class="card">
+    <div class="card-hd">Historie odečtů</div>
+    <table><thead><tr><th>Nájemník</th><th>Datum</th><th>Stav (m³)</th><th>Spotřeba (m³)</th><th>Náklad (Kč)</th><th></th></tr></thead>
+    <tbody id="m-hist"></tbody></table>
+  </div>
+</div>
+
+<!-- CHARGES -->
+<div class="page" id="p-charges">
+  <div class="tab-bar">
+    <div class="tab active" onclick="ctab(this,'shared')">Sdílené poplatky</div>
+    <div class="tab" onclick="ctab(this,'indiv')">Individuální</div>
+    <div class="tab" onclick="ctab(this,'wh')">Srážkové (PO)</div>
+  </div>
+  <div id="c-shared">
+    <div class="sec-hd"><div class="sec-t">Sdílené náklady budovy</div><button class="btn btn-p btn-sm" onclick="openSharedModal()">+ Přidat</button></div>
+    <div class="alert a-i">Náklady jsou automaticky rozděleny na <strong id="c-tenant-count">—</strong> nájemníků dle zvolené metody.</div>
+    <div id="sc-list"></div>
+    <div class="card" style="margin-top:10px"><div class="card-hd">Podíl na nájemníka</div><div id="sc-perhead"></div></div>
+  </div>
+  <div id="c-indiv" style="display:none">
+    <div class="sec-hd"><div class="sec-t">Individuální poplatky</div><button class="btn btn-p btn-sm" onclick="openIndivModal()">+ Přidat</button></div>
+    <div id="ic-list"></div>
+  </div>
+  <div id="c-wh" style="display:none">
+    <div class="sec-hd"><div class="sec-t">Srážkové poplatky — právnické osoby</div><button class="btn btn-p btn-sm" onclick="openWhModal()">+ Přidat</button></div>
+    <div class="alert a-w">Srážková daň se automaticky počítá pro PO s aktivní srážkou. Sazba nastavena v Nastavení.</div>
+    <div id="wh-list"></div>
+    <div class="card" style="margin-top:10px"><div class="card-hd">Srážková daň z nájemného (PO)</div><div id="wh-auto"></div></div>
+  </div>
+</div>
+
+<!-- PAYMENTS -->
+<div class="page" id="p-payments">
+  <div class="sec-hd">
+    <div class="sec-t">Sledování plateb</div>
+    <div class="flex gap8 aic">
+      <select id="py-m" onchange="renderPayments()" style="width:auto">
+        <option value="1">Leden</option><option value="2">Únor</option><option value="3">Březen</option>
+        <option value="4">Duben</option><option value="5">Květen</option><option value="6">Červen</option>
+        <option value="7">Červenec</option><option value="8">Srpen</option><option value="9">Září</option>
+        <option value="10">Říjen</option><option value="11">Listopad</option><option value="12">Prosinec</option>
+      </select>
+      <select id="py-y" onchange="renderPayments()" style="width:auto">
+        <option value="2024">2024</option><option value="2025">2025</option><option value="2026">2026</option>
+      </select>
+      <button class="btn btn-p btn-sm" onclick="openPayModal()">+ Platba</button>
+    </div>
+  </div>
+  <div class="card"><table><thead><tr><th>Nájemník</th><th>Nájemné</th><th>Zálohy</th><th>Celkem</th><th>Zaplaceno</th><th>Zbývá</th><th>Stav</th><th></th></tr></thead>
+  <tbody id="py-table"></tbody></table></div>
+  <div class="card"><div class="card-hd">Historie plateb</div>
+  <table><thead><tr><th>Datum</th><th>Nájemník</th><th>Částka</th><th>Typ</th><th>VS</th><th>Poznámka</th><th></th></tr></thead>
+  <tbody id="py-hist"></tbody></table></div>
+</div>
+
+<!-- BILLING -->
+<div class="page" id="p-billing">
+  <div class="sec-hd">
+    <div class="sec-t">Roční vyúčtování</div>
+    <div class="flex gap8 aic">
+      <select id="bl-y" style="width:auto"><option value="2024">2024</option><option value="2025">2025</option><option value="2026">2026</option></select>
+      <select id="bl-t" style="width:auto"><option value="all">Všichni</option></select>
+      <button class="btn btn-p btn-sm" onclick="genBilling()">Vygenerovat</button>
+    </div>
+  </div>
+  <div id="bl-result"><div class="empty">Zvolte rok a nájemníka, pak klikněte Vygenerovat.</div></div>
+</div>
+
+<!-- SETTINGS -->
+<div class="page" id="p-settings">
+  <div class="g2">
+    <div>
+      <div class="card">
+        <div class="card-hd">Budova</div>
+        <div class="fr"><label>Název budovy</label><input id="s-name" placeholder="Bytový dům, Lipová 5"></div>
+        <div class="fr"><label>Adresa</label><input id="s-addr" placeholder="Ulice č.p., město"></div>
+        <div class="g2">
+          <div class="fr"><label>Cena vody (Kč/m³)</label><input id="s-wp" type="number" step="0.01" placeholder="89.50"></div>
+          <div class="fr"><label>Sazba srážkové daně (%)</label><input id="s-whr" type="number" step="0.1" placeholder="15"></div>
+        </div>
+        <div class="fr"><label>Metoda dělení sdílených nákladů</label>
+          <select id="s-split"><option value="equal">Rovným dílem</option><option value="area">Dle plochy bytu (m²)</option><option value="persons">Dle počtu osob</option></select></div>
+        <button class="btn btn-p" onclick="saveSettings()">Uložit nastavení</button>
+      </div>
+      <div class="card">
+        <div class="card-hd">Data — záloha</div>
+        <div class="ft mb8">Exportujte nebo importujte všechna data jako JSON soubor.</div>
+        <div class="flex gap8">
+          <button class="btn btn-sm" onclick="exportData()">Export JSON</button>
+          <button class="btn btn-sm" onclick="document.getElementById('impf').click()">Import JSON</button>
+        </div>
+        <input type="file" id="impf" accept=".json" style="display:none" onchange="importData(event)">
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="api-box">
+          <div class="fw" style="font-size:13px;margin-bottom:5px">Bankovní API — příprava na napojení</div>
+          <div class="ft mb8">Po aktivaci bude systém automaticky párovat příchozí platby dle variabilního symbolu nájemníka.</div>
+          <div class="fr"><label>Banka</label>
+            <select id="s-bank" onchange="updateApiPreview()">
+              <option value="">— Vyberte banku —</option>
+              <option value="fio">FIO Banka</option><option value="csob">ČSOB</option>
+              <option value="kb">Komerční banka</option><option value="moneta">Moneta</option>
+            </select></div>
+          <div class="fr"><label>API Token</label><input id="s-tok" type="password" placeholder="Váš token z internetového bankovnictví"></div>
+          <div class="fr"><label>Číslo účtu (IBAN)</label><input id="s-iban" placeholder="CZ65 0800 0000 1920 0014 5399"></div>
+          <div class="fr"><label>Automatická kontrola (den v měsíci)</label>
+            <select id="s-aday"><option value="5">5. den</option><option value="10">10. den</option><option value="15">15. den</option><option value="20">20. den</option></select></div>
+          <div class="code" id="api-code">// Zvolte banku pro zobrazení endpointu</div>
+          <button class="btn btn-sm mt8" onclick="testApi()">Testovat (demo)</button>
+          <div id="api-res"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /wrap -->
+
+<!-- MODAL -->
+<div class="overlay" id="ov" style="display:none" onclick="if(event.target===this)closeModal()">
+  <div class="modal" id="mc"></div>
+</div>
+
+<script>
+const MN=['Leden','Únor','Březen','Duben','Květen','Červen','Červenec','Srpen','Září','Říjen','Listopad','Prosinec'];
+
+// ── STATE ──────────────────────────────────────────────
+let S={
+  tenants:[],meters:[],shared:[],indiv:[],wh:[],payments:[],
+  settings:{name:'Bytový dům',addr:'',wp:89.5,whr:15,split:'equal',bank:'',tok:'',iban:'',aday:'10'}
+};
+
+// ── STORAGE ────────────────────────────────────────────
+function lsGet(k){try{return JSON.parse(localStorage.getItem('pm2_'+k))}catch{return null}}
+function lsSet(k,v){try{localStorage.setItem('pm2_'+k,JSON.stringify(v))}catch(e){console.error(e)}}
+function loadAll(){
+  ['tenants','meters','shared','indiv','wh','payments','settings'].forEach(k=>{const v=lsGet(k);if(v!=null)S[k]=v;});
+  applySettings();renderAll();
+}
+function saveAll(){['tenants','meters','shared','indiv','wh','payments','settings'].forEach(k=>lsSet(k,S[k]));}
+
+function applySettings(){
+  const s=S.settings;
+  document.getElementById('app-title').textContent=s.name||'Správa nemovitosti';
+  document.getElementById('app-sub').textContent=(s.addr||'')+(s.addr?' — ':'')+S.tenants.filter(t=>t.active).length+' aktivních nájemníků';
+  ['s-name','s-addr','s-wp','s-whr','s-split','s-bank','s-iban','s-aday'].forEach(id=>{
+    const el=document.getElementById(id);if(!el)return;
+    const map={['s-name']:'name',['s-addr']:'addr',['s-wp']:'wp',['s-whr']:'whr',['s-split']:'split',['s-bank']:'bank',['s-iban']:'iban',['s-aday']:'aday'};
+    el.value=s[map[id]]||'';
+  });
+  document.getElementById('m-wprice').textContent=(+s.wp||89.5).toFixed(2);
+}
+
+// ── NAV ────────────────────────────────────────────────
+const PAGE_MAP={dash:0,tenants:1,meters:2,charges:3,payments:4,billing:5,settings:6};
+function nav(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('#mainNav button').forEach(b=>b.classList.remove('active'));
+  document.getElementById('p-'+id).classList.add('active');
+  const btns=[...document.querySelectorAll('#mainNav button')];
+  btns[PAGE_MAP[id]].classList.add('active');
+  if(id==='dash')renderDash();
+  if(id==='tenants')renderTenants();
+  if(id==='meters')renderMeters();
+  if(id==='charges')renderCharges();
+  if(id==='payments')renderPayments();
+  if(id==='billing')populateBillingSelect();
+}
+function renderAll(){renderDash();renderTenants();renderMeters();renderCharges();renderPayments();populateBillingSelect();}
+
+// ── HELPERS ────────────────────────────────────────────
+function fmtCZK(n){return Math.round(+n||0).toLocaleString('cs-CZ')+' Kč'}
+function fmtM3(n){return (+n||0).toFixed(3)+' m³'}
+function today(){return new Date().toISOString().slice(0,10)}
+function tenantDeposits(t){return(+t.wDep||0)+(+t.wstDep||0)+(+t.eDep||0)+(+t.cDep||0)}
+function activeTenants(){return S.tenants.filter(t=>t.active)}
+function getVS(t){return t.vs||t.id.slice(-6)}
+function initials(s){return s.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2)}
+
+// ── DASHBOARD ──────────────────────────────────────────
+function renderDash(){
+  const now=new Date(),m=now.getMonth()+1,y=now.getFullYear();
+  document.getElementById('d-month-label').textContent=MN[m-1]+' '+y;
+  const at=activeTenants();
+  let due=0,paid=0;
+  at.forEach(t=>{due+=(+t.rent||0)+tenantDeposits(t);paid+=paidFor(t.id,m,y);});
+  document.getElementById('d-stats').innerHTML=`
+    <div class="stat"><div class="stat-l">Aktivní nájemníci</div><div class="stat-v">${at.length}</div></div>
+    <div class="stat"><div class="stat-l">Právnické osoby</div><div class="stat-v">${at.filter(t=>t.type==='company').length}</div></div>
+    <div class="stat"><div class="stat-l">Předpis ${MN[m-1]}</div><div class="stat-v" style="font-size:15px">${fmtCZK(due)}</div></div>
+    <div class="stat"><div class="stat-l">Přijato ${MN[m-1]}</div><div class="stat-v" style="font-size:15px;color:${paid>=due?'var(--green)':'var(--orange)'}">${fmtCZK(paid)}</div></div>`;
+  // Alerts
+  let al='';
+  at.forEach(t=>{
+    const d=(+t.rent||0)+tenantDeposits(t),p=paidFor(t.id,m,y);
+    if(p<d)al+=`<div class="alert a-w">${t.name} — nezaplaceno <strong>${fmtCZK(d-p)}</strong> za ${MN[m-1]}</div>`;
+  });
+  document.getElementById('d-alerts').innerHTML=al||`<div class="alert a-s">Všechny platby za ${MN[m-1]} jsou evidovány jako zaplacené.</div>`;
+  // Last payments
+  const lp=[...S.payments].sort((a,b)=>b.id-a.id).slice(0,5);
+  document.getElementById('d-lastpay').innerHTML=lp.length?lp.map(p=>{
+    const t=S.tenants.find(x=>x.id===p.tid);
+    return `<div class="c-row"><div class="c-name">${t?t.name:'?'}</div><div class="ft">${p.date}</div><div class="c-amt tg">+${fmtCZK(p.amount)}</div></div>`;
+  }).join(''):`<div class="empty">Žádné platby</div>`;
+  // Tenants overview
+  document.getElementById('d-tenants').innerHTML=at.map(t=>{
+    const d=(+t.rent||0)+tenantDeposits(t),p=paidFor(t.id,m,y);
+    const pct=d>0?Math.min(100,Math.round(p/d*100)):0;
+    return `<div class="t-row" onclick="openTenantDetail('${t.id}')">
+      <div class="avatar ${t.type==='company'?'av-c':'av-p'}">${initials(t.name)}</div>
+      <div class="t-info"><div class="t-name">${t.name}</div>
+        <div class="pb"><div class="pbf" style="width:${pct}%;background:${pct>=100?'var(--green)':pct>0?'var(--blue)':'var(--red)'}"></div></div>
+        <div class="ft">${fmtCZK(p)} / ${fmtCZK(d)}</div></div>
+      <span class="badge ${pct>=100?'b-green':pct>0?'b-orange':'b-red'}">${pct}%</span></div>`;
+  }).join('')||`<div class="empty">Přidejte nájemníky</div>`;
+}
+
+function paidFor(tid,m,y){return S.payments.filter(p=>p.tid===tid&&+p.m===m&&+p.y===y).reduce((s,p)=>s+(+p.amount||0),0);}
+
+// ── TENANTS ────────────────────────────────────────────
+let tFilter='all';
+function ftab(el,f){tFilter=f;document.querySelectorAll('.tab-bar .tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');renderTenants();}
+function renderTenants(){
+  let list=S.tenants;
+  if(tFilter==='person')list=list.filter(t=>t.type==='person'&&t.active);
+  else if(tFilter==='company')list=list.filter(t=>t.type==='company'&&t.active);
+  else if(tFilter==='inactive')list=list.filter(t=>!t.active);
+  else list=list.filter(t=>t.active);
+  document.getElementById('t-list').innerHTML=list.length?list.map(t=>`
+    <div class="t-row" onclick="openTenantDetail('${t.id}')">
+      <div class="avatar ${t.type==='company'?'av-c':'av-p'}">${initials(t.name)}</div>
+      <div class="t-info">
+        <div class="t-name">${t.name} ${t.type==='company'?'<span class="badge b-purple">PO</span>':''} ${!t.active?'<span class="badge b-gray">Archiv</span>':''}</div>
+        <div class="t-sub">Byt ${t.unit||'—'} · Nájemné ${fmtCZK(t.rent)}/měs · VS ${getVS(t)} ${t.type==='company'&&t.whOn?'· <span class="badge b-orange">Srážková daň</span>':''}</div></div>
+      <div class="flex gap4">
+        <button class="btn btn-sm" onclick="event.stopPropagation();openTenantModal('${t.id}')">Upravit</button>
+        <button class="btn btn-sm btn-d" onclick="event.stopPropagation();delTenant('${t.id}')">Smazat</button>
+      </div></div>`).join(''):`<div class="empty">Žádní nájemníci. Klikněte + Přidat nájemníka.</div>`;
+}
+
+function openTenantModal(id){
+  const t=id?S.tenants.find(x=>x.id===id):null;
+  document.getElementById('mc').innerHTML=`
+    <div class="modal-t">${t?'Upravit nájemníka':'Nový nájemník / subjekt'}</div>
+    <div class="g2">
+      <div class="fr"><label>Typ subjektu</label><select id="mt-type" onchange="toggleCF()">
+        <option value="person"${!t||t.type==='person'?' selected':''}>Fyzická osoba</option>
+        <option value="company"${t&&t.type==='company'?' selected':''}>Právnická osoba (PO)</option></select></div>
+      <div class="fr"><label>Stav</label><select id="mt-active">
+        <option value="1"${!t||t.active?' selected':''}>Aktivní nájemce</option>
+        <option value="0"${t&&!t.active?' selected':''}>Archiv / ukončeno</option></select></div></div>
+    <div class="fr"><label>Jméno / Název firmy *</label><input id="mt-name" value="${t?t.name:''}" placeholder="Jan Novák / ABC s.r.o."></div>
+    <div class="g2" id="mt-cf" style="display:${t&&t.type==='company'?'grid':'none'}">
+      <div class="fr"><label>IČO</label><input id="mt-ico" value="${t?t.ico||'':''}" placeholder="12345678"></div>
+      <div class="fr"><label>DIČ</label><input id="mt-dic" value="${t?t.dic||'':''}" placeholder="CZ12345678"></div></div>
+    <div class="g2">
+      <div class="fr"><label>Číslo jednotky / bytu</label><input id="mt-unit" value="${t?t.unit||'':''}" placeholder="1A"></div>
+      <div class="fr"><label>Variabilní symbol (VS)</label><input id="mt-vs" value="${t?t.vs||'':''}" placeholder="Generovat auto"></div></div>
+    <div class="g2">
+      <div class="fr"><label>Plocha bytu (m²)</label><input id="mt-area" type="number" value="${t?t.area||'':''}" placeholder="65"></div>
+      <div class="fr"><label>Počet osob</label><input id="mt-pers" type="number" value="${t?t.pers||1:1}" min="1"></div></div>
+    <div class="g2">
+      <div class="fr"><label>E-mail</label><input id="mt-email" type="email" value="${t?t.email||'':''}" placeholder="jan@email.cz"></div>
+      <div class="fr"><label>Telefon</label><input id="mt-phone" value="${t?t.phone||'':''}" placeholder="+420 600 000 000"></div></div>
+    <div class="g2">
+      <div class="fr"><label>Datum nástupu</label><input id="mt-from" type="date" value="${t?t.from||'':''}"></div>
+      <div class="fr"><label>Datum ukončení smlouvy</label><input id="mt-to" type="date" value="${t?t.to||'':''}"></div></div>
+    <div class="divider"></div>
+    <div class="fw mb8" style="font-size:13px">Nájemné a zálohy</div>
+    <div class="g2">
+      <div class="fr"><label>Nájemné (Kč/měs)</label><input id="mt-rent" type="number" value="${t?+t.rent||0:0}"></div>
+      <div class="fr"><label>Záloha voda (Kč/měs)</label><input id="mt-wd" type="number" value="${t?+t.wDep||0:0}"></div></div>
+    <div class="g2">
+      <div class="fr"><label>Záloha odpad (Kč/měs)</label><input id="mt-wst" type="number" value="${t?+t.wstDep||0:0}"></div>
+      <div class="fr"><label>Záloha elektrika SČ (Kč/měs)</label><input id="mt-ed" type="number" value="${t?+t.eDep||0:0}"></div></div>
+    <div class="g2">
+      <div class="fr"><label>Záloha úklid (Kč/měs)</label><input id="mt-cd" type="number" value="${t?+t.cDep||0:0}"></div>
+      <div class="fr"><label>Kauce (Kč, jednorázově)</label><input id="mt-dep" type="number" value="${t?+t.dep||0:0}"></div></div>
+    <div id="mt-whrow" style="display:${t&&t.type==='company'?'block':'none'}">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px"><input type="checkbox" id="mt-wh" ${t&&t.whOn?'checked':''}>Aplikovat srážkovou daň (§36 ZDP)</label></div>
+    <div class="fr"><label>Poznámky ke smlouvě</label><textarea id="mt-notes">${t?t.notes||'':''}</textarea></div>
+    <div class="mf"><button class="btn" onclick="closeModal()">Zrušit</button><button class="btn btn-p" onclick="saveTenant('${id||''}')">Uložit</button></div>`;
+  openModal();
+}
+function toggleCF(){
+  const c=document.getElementById('mt-type').value==='company';
+  document.getElementById('mt-cf').style.display=c?'grid':'none';
+  document.getElementById('mt-whrow').style.display=c?'block':'none';
+}
+function saveTenant(id){
+  const name=document.getElementById('mt-name').value.trim();
+  if(!name){alert('Zadejte jméno.');return;}
+  const t={id:id||Date.now().toString(),type:document.getElementById('mt-type').value,active:document.getElementById('mt-active').value==='1',
+    name,ico:v('mt-ico'),dic:v('mt-dic'),unit:v('mt-unit'),vs:v('mt-vs')||Date.now().toString().slice(-6),
+    area:+v('mt-area')||0,pers:+v('mt-pers')||1,email:v('mt-email'),phone:v('mt-phone'),
+    from:v('mt-from'),to:v('mt-to'),rent:+v('mt-rent')||0,wDep:+v('mt-wd')||0,wstDep:+v('mt-wst')||0,
+    eDep:+v('mt-ed')||0,cDep:+v('mt-cd')||0,dep:+v('mt-dep')||0,
+    whOn:document.getElementById('mt-wh')?document.getElementById('mt-wh').checked:false,
+    notes:v('mt-notes')};
+  if(id){const i=S.tenants.findIndex(x=>x.id===id);S.tenants[i]=t;}else S.tenants.push(t);
+  saveAll();closeModal();renderAll();
+}
+function delTenant(id){if(!confirm('Smazat nájemníka?'))return;S.tenants=S.tenants.filter(x=>x.id!==id);saveAll();renderAll();}
+function v(id){const el=document.getElementById(id);return el?el.value:'';}
+
+function openTenantDetail(id){
+  const t=S.tenants.find(x=>x.id===id);if(!t)return;
+  const now=new Date(),m=now.getMonth()+1,y=now.getFullYear();
+  const due=(+t.rent||0)+tenantDeposits(t),paid=paidFor(id,m,y);
+  const pct=due>0?Math.min(100,Math.round(paid/due*100)):0;
+  const rate=+S.settings.whr||15;
+  const wh=t.type==='company'&&t.whOn?Math.round((+t.rent||0)*rate/100):0;
+  document.getElementById('mc').innerHTML=`
+    <div class="flex jbs aic mb8"><div class="modal-t" style="margin:0">${t.name}</div><span class="badge ${t.type==='company'?'b-purple':'b-blue'}">${t.type==='company'?'Právnická osoba':'Fyzická osoba'}</span></div>
+    <div class="g2 mb8">
+      <div class="stat"><div class="stat-l">Jednotka</div><div style="font-size:17px;font-weight:500">${t.unit||'—'}</div></div>
+      <div class="stat"><div class="stat-l">VS platby</div><div style="font-size:17px;font-weight:500">${getVS(t)}</div></div></div>
+    <table><tbody>
+      <tr><td class="ft">Nájemné</td><td class="fw">${fmtCZK(t.rent)}/měs</td><td class="ft">Záloha voda</td><td class="fw">${fmtCZK(t.wDep)}</td></tr>
+      <tr><td class="ft">Záloha odpad</td><td class="fw">${fmtCZK(t.wstDep)}</td><td class="ft">Záloha elektrika SČ</td><td class="fw">${fmtCZK(t.eDep)}</td></tr>
+      <tr><td class="ft">Záloha úklid</td><td class="fw">${fmtCZK(t.cDep)}</td><td class="ft">Celkem/měs</td><td class="fw tc">${fmtCZK(due)}</td></tr>
+      ${t.type==='company'&&t.ico?`<tr><td class="ft">IČO</td><td>${t.ico}</td><td class="ft">DIČ</td><td>${t.dic||'—'}</td></tr>`:''}
+      ${wh?`<tr><td class="ft">Srážková daň ${rate}%</td><td class="tr fw">−${fmtCZK(wh)}/měs</td><td></td><td></td></tr>`:''}
+    </tbody></table>
+    <div class="divider"></div>
+    <div class="fw mb8" style="font-size:13px">${MN[m-1]} ${y} — stav platby</div>
+    <div class="pb" style="height:8px"><div class="pbf" style="width:${pct}%;background:${pct>=100?'var(--green)':pct>0?'var(--blue)':'var(--red)'}"></div></div>
+    <div class="flex jbs mt8"><span class="ft">Zaplaceno: ${fmtCZK(paid)}</span><span class="${pct>=100?'tg':'tr'} fw">${pct>=100?'Uhrazeno ✓':'Zbývá '+fmtCZK(due-paid)}</span></div>
+    ${t.notes?`<div class="divider"></div><div class="ft">${t.notes}</div>`:''}
+    <div class="mf"><button class="btn" onclick="closeModal()">Zavřít</button><button class="btn btn-p" onclick="closeModal();openTenantModal('${id}')">Upravit</button></div>`;
+  openModal();
+}
+
+// ── METERS ─────────────────────────────────────────────
+function renderMeters(){
+  const at=activeTenants();
+  document.getElementById('m-current').innerHTML=at.length?at.map(t=>{
+    const ms=S.meters.filter(m=>m.tid===t.id).sort((a,b)=>new Date(b.date)-new Date(a.date));
+    const last=ms[0],prev=ms[1];
+    const cons=last&&prev?(+last.r-(+prev.r)).toFixed(3):null;
+    const cost=cons!==null?Math.round(+cons*(+S.settings.wp||89.5)):null;
+    return `<tr><td><span class="fw">${t.name}</span> <span class="ft">Byt ${t.unit||'?'}</span></td>
+      <td>${last?last.r+' m³':'—'}</td><td>${last?last.date:'—'}</td>
+      <td>${cons!==null?`<span class="tg fw">${cons} m³</span>`:'—'}</td>
+      <td>${cost!==null?fmtCZK(cost):'—'}</td></tr>`;
+  }).join(''):`<tr><td colspan="5" class="empty">Nejprve přidejte nájemníky</td></tr>`;
+  const hist=[...S.meters].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,25);
+  document.getElementById('m-hist').innerHTML=hist.length?hist.map(m=>{
+    const t=S.tenants.find(x=>x.id===m.tid);
+    const prev=S.meters.filter(x=>x.tid===m.tid&&new Date(x.date)<new Date(m.date)).sort((a,b)=>new Date(b.date)-new Date(a.date))[0];
+    const cons=prev?((+m.r)-(+prev.r)).toFixed(3):null;
+    const cost=cons!==null?Math.round(+cons*(+S.settings.wp||89.5)):null;
+    return `<tr><td>${t?t.name+' ('+t.unit+')':'?'}</td><td>${m.date}</td><td>${m.r} m³</td>
+      <td>${cons!==null?cons+' m³':'první odečet'}</td><td>${cost!==null?fmtCZK(cost):'—'}</td>
+      <td><button class="btn btn-sm btn-d" onclick="delMeter('${m.id}')">×</button></td></tr>`;
+  }).join(''):`<tr><td colspan="6" class="empty">Žádné odečty</td></tr>`;
+}
+function openMeterModal(){
+  const at=activeTenants();
+  document.getElementById('mc').innerHTML=`
+    <div class="modal-t">Zadat odečet vodoměru</div>
+    <div class="fr"><label>Nájemník *</label><select id="mm-tid"><option value="">— Vyberte —</option>${at.map(t=>`<option value="${t.id}">${t.name} (${t.unit||'—'})</option>`).join('')}</select></div>
+    <div class="g2">
+      <div class="fr"><label>Datum odečtu *</label><input id="mm-date" type="date" value="${today()}"></div>
+      <div class="fr"><label>Stav vodoměru (m³) *</label><input id="mm-r" type="number" step="0.001" placeholder="1234.567"></div></div>
+    <div class="fr"><label>Poznámka</label><input id="mm-note" placeholder="volitelná poznámka"></div>
+    <div class="mf"><button class="btn" onclick="closeModal()">Zrušit</button><button class="btn btn-p" onclick="saveMeter()">Uložit odečet</button></div>`;
+  openModal();
+}
+function saveMeter(){
+  const tid=v('mm-tid'),date=v('mm-date'),r=v('mm-r');
+  if(!tid||!date||!r){alert('Vyplňte všechna povinná pole.');return;}
+  S.meters.push({id:Date.now().toString(),tid,date,r:+r,note:v('mm-note')});
+  saveAll();closeModal();renderMeters();
+}
+function delMeter(id){if(!confirm('Smazat odečet?'))return;S.meters=S.meters.filter(x=>x.id!==id);saveAll();renderMeters();}
+
+// ── CHARGES ────────────────────────────────────────────
+let cTab='shared';
+function ctab(el,t){
+  cTab=t;
+  ['shared','indiv','wh'].forEach(x=>document.getElementById('c-'+x).style.display=x===t?'block':'none');
+  document.querySelectorAll('.tab-bar .tab').forEach(b=>b.classList.remove('active'));el.classList.add('active');
+  renderCharges();
+}
+function renderCharges(){renderShared();renderIndiv();renderWH();}
+
+function splitShare(c,t){
+  const at=activeTenants();const n=at.length||1;
+  if(!c.split||c.split==='default'){const sm=S.settings.split||'equal';return splitByMethod(c.amount,t,at,sm);}
+  return splitByMethod(c.amount,t,at,c.split);
+}
+function splitByMethod(total,t,at,method){
+  if(method==='equal')return (total||0)/at.length;
+  if(method==='area'){const tots=at.reduce((s,x)=>s+(+x.area||0),0);return tots>0?(total||0)*(+t.area||0)/tots:0;}
+  if(method==='persons'){const totp=at.reduce((s,x)=>s+(+x.pers||1),0);return totp>0?(total||0)*(+t.pers||1)/totp:0;}
+  return 0;
+}
+
+function renderShared(){
+  const at=activeTenants();
+  document.getElementById('c-tenant-count').textContent=at.length;
+  document.getElementById('sc-list').innerHTML=S.shared.length?S.shared.map(c=>`
+    <div class="c-row"><div>
+      <div class="c-name">${c.name}</div>
+      <div class="ft">${c.cat||'jiné'} · ${c.date||'—'} · Dělení: ${c.split||'výchozí'}</div></div>
+    <div class="c-amt">${fmtCZK(c.amount)}</div>
+    <button class="btn btn-sm btn-d" onclick="delShared('${c.id}')">×</button></div>`).join(''):`<div class="empty">Žádné sdílené náklady. Přidejte revize, elektrika SČ, úklid, odpad...</div>`;
+  document.getElementById('sc-perhead').innerHTML=at.length?at.map(t=>{
+    const share=S.shared.reduce((s,c)=>s+splitShare(c,t),0);
+    return `<div class="c-row"><div class="c-name">${t.name} <span class="ft">(${t.unit})</span></div><div class="c-amt">${fmtCZK(share)}</div></div>`;
+  }).join(''):`<div class="empty">Nejprve přidejte nájemníky</div>`;
+}
+
+function openSharedModal(){
+  document.getElementById('mc').innerHTML=`
+    <div class="modal-t">Nový sdílený poplatek / náklad</div>
+    <div class="fr"><label>Typ poplatku</label>
+      <select id="ms-preset" onchange="applyPreset()">
+        <option value="">Vlastní...</option>
+        <option value="Revize výtahu">Revize výtahu</option>
+        <option value="Revize elektroinstalace">Revize elektroinstalace</option>
+        <option value="Revize hasicích přístrojů">Revize hasicích přístrojů</option>
+        <option value="Revize plynu">Revize plynu</option>
+        <option value="Úklid společných prostor">Úklid společných prostor</option>
+        <option value="Odvoz odpadu">Odvoz odpadu</option>
+        <option value="Elektrika společných prostor">Elektrika společných prostor</option>
+        <option value="Správa nemovitosti">Správa nemovitosti</option>
+        <option value="Pojištění budovy">Pojištění budovy</option>
+        <option value="Deratizace">Deratizace</option></select></div>
+    <div class="fr"><label>Název (upravte dle potřeby)</label><input id="ms-name" placeholder="Název poplatku"></div>
+    <div class="g2">
+      <div class="fr"><label>Celková částka (Kč)</label><input id="ms-amt" type="number" placeholder="5000"></div>
+      <div class="fr"><label>Kategorie</label><select id="ms-cat">
+        <option value="revize">Revize</option><option value="uklid">Úklid</option>
+        <option value="odpad">Odpad</option><option value="energie">Energie</option>
+        <option value="sprava">Správa</option><option value="jine">Jiné</option></select></div></div>
+    <div class="g2">
+      <div class="fr"><label>Datum</label><input id="ms-date" type="date" value="${today()}"></div>
+      <div class="fr"><label>Metoda dělení</label><select id="ms-split">
+        <option value="default">Výchozí (dle nastavení)</option>
+        <option value="equal">Rovným dílem</option>
+        <option value="area">Dle plochy (m²)</option>
+        <option value="persons">Dle počtu osob</option></select></div></div>
+    <div class="mf"><button class="btn" onclick="closeModal()">Zrušit</button><button class="btn btn-p" onclick="saveShared()">Uložit</button></div>`;
+  openModal();
+}
+function applyPreset(){
+  const pv=document.getElementById('ms-preset').value;
+  if(pv)document.getElementById('ms-name').value=pv;
+  const catMap={'Revize výtahu':'revize','Revize elektroinstalace':'revize','Revize hasicích přístrojů':'revize','Revize plynu':'revize',
+    'Úklid společných prostor':'uklid','Odvoz odpadu':'odpad','Elektrika společných prostor':'energie',
+    'Správa nemovitosti':'sprava','Pojištění budovy':'sprava','Deratizace':'jine'};
+  if(catMap[pv])document.getElementById('ms-cat').value=catMap[pv];
+}
+function saveShared(){
+  const name=v('ms-name').trim();const amt=+v('ms-amt')||0;
+  if(!name){alert('Zadejte název.');return;}
+  S.shared.push({id:Date.now().toString(),name,amount:amt,cat:v('ms-cat'),date:v('ms-date'),split:v('ms-split')});
+  saveAll();closeModal();renderShared();
+}
+function delShared(id){if(!confirm('Smazat poplatek?'))return;S.shared=S.shared.filter(x=>x.id!==id);saveAll();renderShared();}
+
+function renderIndiv(){
+  document.getElementById('ic-list').innerHTML=S.indiv.length?S.indiv.map(c=>{
+    const t=S.tenants.find(x=>x.id===c.tid);
+    return `<div class="c-row"><div><div class="c-name">${c.name}</div><div class="ft">${t?t.name:'?'} · ${c.date}</div></div>
+      <div class="c-amt">${fmtCZK(c.amount)}</div>
+      <button class="btn btn-sm btn-d" onclick="delIndiv('${c.id}')">×</button></div>`;
+  }).join(''):`<div class="empty">Žádné individuální poplatky</div>`;
+}
+function openIndivModal(){
+  const at=activeTenants();
+  document.getElementById('mc').innerHTML=`
+    <div class="modal-t">Individuální poplatek</div>
+    <div class="fr"><label>Nájemník *</label><select id="mi-tid"><option value="">— Vyberte —</option>${at.map(t=>`<option value="${t.id}">${t.name}</option>`).join('')}</select></div>
+    <div class="fr"><label>Název *</label><input id="mi-name" placeholder="Oprava, přeplatek, ..."></div>
+    <div class="g2">
+      <div class="fr"><label>Částka (Kč)</label><input id="mi-amt" type="number"></div>
+      <div class="fr"><label>Datum</label><input id="mi-date" type="date" value="${today()}"></div></div>
+    <div class="fr"><label>Poznámka</label><input id="mi-note"></div>
+    <div class="mf"><button class="btn" onclick="closeModal()">Zrušit</button><button class="btn btn-p" onclick="saveIndiv()">Uložit</button></div>`;
+  openModal();
+}
+function saveIndiv(){
+  const tid=v('mi-tid'),name=v('mi-name').trim();
+  if(!tid||!name){alert('Vyplňte nájemníka a název.');return;}
+  S.indiv.push({id:Date.now().toString(),tid,name,amount:+v('mi-amt')||0,date:v('mi-date'),note:v('mi-note')});
+  saveAll();closeModal();renderIndiv();
+}
+function delIndiv(id){if(!confirm('Smazat?'))return;S.indiv=S.indiv.filter(x=>x.id!==id);saveAll();renderIndiv();}
+
+function renderWH(){
+  const rate=+S.settings.whr||15;
+  document.getElementById('wh-list').innerHTML=S.wh.length?S.wh.map(c=>{
+    const t=S.tenants.find(x=>x.id===c.tid);
+    const tax=Math.round((+c.amount||0)*rate/100);
+    return `<div class="c-row"><div><div class="c-name">${c.name}</div><div class="ft">${t?t.name:'?'} · ${c.date} · Sazba: ${rate}%</div></div>
+      <div style="text-align:right"><div class="c-amt">${fmtCZK(c.amount)}</div><div class="ft tr">Srážka: −${fmtCZK(tax)}</div></div>
+      <button class="btn btn-sm btn-d" onclick="delWH('${c.id}')">×</button></div>`;
+  }).join(''):`<div class="empty">Žádné srážkové poplatky</div>`;
+  const companies=activeTenants().filter(t=>t.type==='company');
+  document.getElementById('wh-auto').innerHTML=companies.length?companies.map(t=>{
+    const base=+t.rent||0,tax=t.whOn?Math.round(base*rate/100):0;
+    return `<div class="c-row"><div class="c-name">${t.name} <span class="ft">(${t.unit})</span></div>
+      <div style="text-align:right">
+        <div class="ft">Základ: ${fmtCZK(base)}/měs</div>
+        ${t.whOn?`<div class="tr fw">Srážka ${rate}%: −${fmtCZK(tax)}/měs</div><div class="ft">Roční srážka: −${fmtCZK(tax*12)}</div>`:`<span class="badge b-gray">Srážka neaktivní</span>`}
+      </div></div>`;
+  }).join(''):`<div class="empty">Žádné aktivní právnické osoby. Přidejte PO v sekci Nájemníci.</div>`;
+}
+function openWhModal(){
+  const companies=activeTenants().filter(t=>t.type==='company');
+  const rate=+S.settings.whr||15;
+  document.getElementById('mc').innerHTML=`
+    <div class="modal-t">Srážkový poplatek (PO)</div>
+    ${companies.length===0?'<div class="alert a-e">Nejsou žádné aktivní právnické osoby.</div>':''}
+    <div class="fr"><label>Právnická osoba *</label><select id="mw-tid"><option value="">— Vyberte PO —</option>${companies.map(t=>`<option value="${t.id}">${t.name}</option>`).join('')}</select></div>
+    <div class="fr"><label>Popis *</label><input id="mw-name" placeholder="Srážka z nájemného, Q1/2025..."></div>
+    <div class="g2">
+      <div class="fr"><label>Základ (Kč)</label><input id="mw-base" type="number" oninput="calcWH(${rate})"></div>
+      <div class="fr"><label>Srážka (${rate}%) — Kč</label><input id="mw-tax" type="number" readonly></div></div>
+    <div class="fr"><label>Datum</label><input id="mw-date" type="date" value="${today()}"></div>
+    <div class="mf"><button class="btn" onclick="closeModal()">Zrušit</button><button class="btn btn-p" onclick="saveWH()">Uložit</button></div>`;
+  openModal();
+}
+function calcWH(rate){const b=+v('mw-base')||0;document.getElementById('mw-tax').value=Math.round(b*rate/100);}
+function saveWH(){
+  const tid=v('mw-tid'),name=v('mw-name').trim();if(!tid||!name){alert('Vyplňte PO a popis.');return;}
+  const rate=+S.settings.whr||15,base=+v('mw-base')||0;
+  S.wh.push({id:Date.now().toString(),tid,name,amount:base,tax:Math.round(base*rate/100),date:v('mw-date')});
+  saveAll();closeModal();renderWH();
+}
+function delWH(id){if(!confirm('Smazat?'))return;S.wh=S.wh.filter(x=>x.id!==id);saveAll();renderWH();}
+
+// ── PAYMENTS ───────────────────────────────────────────
+function renderPayments(){
+  const m=+v('py-m'),y=+v('py-y');
+  const rows=activeTenants().map(t=>{
+    const rent=+t.rent||0,deps=tenantDeposits(t),total=rent+deps;
+    const paid=paidFor(t.id,m,y),rest=total-paid;
+    const pct=total>0?Math.min(100,Math.round(paid/total*100)):0;
+    const st=paid>=total?'Uhrazeno':paid>0?'Částečně':'Nezaplaceno';
+    const sc=paid>=total?'b-green':paid>0?'b-orange':'b-red';
+    return `<tr><td><span class="fw">${t.name}</span><br><span class="ft">Byt ${t.unit} · VS ${getVS(t)}</span></td>
+      <td>${fmtCZK(rent)}</td><td>${fmtCZK(deps)}</td>
+      <td class="fw">${fmtCZK(total)}</td>
+      <td class="tg fw">${fmtCZK(paid)}</td>
+      <td class="${rest>0?'tr':''}">${rest>0?fmtCZK(rest):'—'}</td>
+      <td><span class="badge ${sc}">${st}</span></td>
+      <td><button class="btn btn-sm" onclick="quickPay('${t.id}',${m},${y},${rest})">+</button></td></tr>`;
+  });
+  document.getElementById('py-table').innerHTML=rows.join('')||`<tr><td colspan="8" class="empty">Žádní nájemníci</td></tr>`;
+  const hist=[...S.payments].sort((a,b)=>b.id-a.id).slice(0,40);
+  document.getElementById('py-hist').innerHTML=hist.length?hist.map(p=>{
+    const t=S.tenants.find(x=>x.id===p.tid);
+    return `<tr><td>${p.date}</td><td>${t?t.name:'?'}</td><td class="tg fw">+${fmtCZK(p.amount)}</td>
+      <td>${p.type||'Nájemné'}</td><td>${p.vs||'—'}</td><td class="ft">${p.note||'—'}</td>
+      <td><button class="btn btn-sm btn-d" onclick="delPay('${p.id}')">×</button></td></tr>`;
+  }).join(''):`<tr><td colspan="7" class="empty">Žádné platby</td></tr>`;
+}
+function quickPay(tid,m,y,rest){
+  const t=S.tenants.find(x=>x.id===tid);if(!t)return;
+  openPayModal(tid,m,y,rest>0?rest:undefined);
+}
+function openPayModal(prefTid,prefM,prefY,prefAmt){
+  const at=activeTenants();
+  const cm=new Date().getMonth()+1,cy=new Date().getFullYear();
+  document.getElementById('mc').innerHTML=`
+    <div class="modal-t">Zadat platbu</div>
+    <div class="fr"><label>Nájemník *</label><select id="mp-tid">
+      <option value="">— Vyberte —</option>${at.map(t=>`<option value="${t.id}"${prefTid===t.id?' selected':''}>${t.name} (${t.unit}) — VS ${getVS(t)}</option>`).join('')}</select></div>
+    <div class="g2">
+      <div class="fr"><label>Částka (Kč) *</label><input id="mp-amt" type="number" value="${prefAmt||''}"></div>
+      <div class="fr"><label>Datum platby</label><input id="mp-date" type="date" value="${today()}"></div></div>
+    <div class="g2">
+      <div class="fr"><label>Měsíc</label><select id="mp-m">${MN.map((n,i)=>`<option value="${i+1}"${(prefM||cm)===i+1?' selected':''}>${n}</option>`).join('')}</select></div>
+      <div class="fr"><label>Rok</label><select id="mp-y"><option value="2024"${(prefY||cy)===2024?' selected':''}>2024</option><option value="2025"${(prefY||cy)===2025?' selected':''}>2025</option><option value="2026"${(prefY||cy)===2026?' selected':''}>2026</option></select></div></div>
+    <div class="g2">
+      <div class="fr"><label>Typ</label><select id="mp-type"><option>Nájemné + zálohy</option><option>Nájemné</option><option>Zálohy</option><option>Kauce</option><option>Přeplatek z vyúčtování</option><option>Jiné</option></select></div>
+      <div class="fr"><label>Variabilní symbol</label><input id="mp-vs" placeholder="Doplní se z nájemníka"></div></div>
+    <div class="fr"><label>Poznámka</label><input id="mp-note" placeholder="Bankovní převod, hotovost...
