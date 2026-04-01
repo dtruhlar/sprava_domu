@@ -257,34 +257,72 @@
         const totNaklady = costs.reduce((sum, c) => sum + Number(c.price || 0), 0);
         const vysledek = totZalohy - totNaklady;
 
+        function generateSettlement() {
+        const name = document.getElementById('f-name').value.trim();
+        if (!name) return alert("Nejdříve vyberte nájemníka.");
+
+        // ZEPTÁME SE NA ROK
+        const vybranyRok = prompt("Zadejte rok, za který chcete provést vyúčtování (např. 2024):", new Date().getFullYear());
+        if (!vybranyRok || isNaN(vybranyRok)) return; // Pokud uživatel stornuje nebo zadá blbost
+
+        const t = DATA.tenants.find(x => x.name.trim().toLowerCase() === name.toLowerCase());
+        
+        // FILTRUJEME NÁKLADY PODLE ZADANÉHO ROKU
+        const costs = DATA.costs.filter(c => 
+            c.name && c.name.toString().trim().toLowerCase() === name.toLowerCase() && 
+            c.year == vybranyRok
+        );
+
+        const totZalohy = Number(t.zalohy || 0) * 12;
+        const totNaklady = costs.reduce((sum, c) => sum + Number(c.price || 0), 0);
+        const vysledek = totZalohy - totNaklady;
+
         const w = window.open("", "_blank");
         w.document.write(`
             <html>
-            <body style="font-family: Arial; padding: 50px;">
-                <div style="max-width: 800px; margin: auto; border: 2px solid #333; padding: 40px;">
-                    <h1 style="text-align:center;">ROČNÍ VYÚČTOVÁNÍ ${curY}</h1>
-                    <div style="display:flex; justify-content: space-between; margin-top: 30px;">
-                        <div><strong>Poskytovatel:</strong><br>AMK TRABANT PLZEŇ z.s.<br>IČ: 45333637</div>
-                        <div style="text-align: right;"><strong>Příjemce:</strong><br>${t.name}<br>${t.street || ''}<br>${t.zip || ''} ${t.city || ''}</div>
+            <body style="font-family: Arial; padding: 40px; line-height: 1.6;">
+                <div style="max-width: 700px; margin: auto; border: 1px solid #ccc; padding: 30px;">
+                    <h2 style="text-align:center; color: #2c3e50;">ROČNÍ VYÚČTOVÁNÍ ZA ROK ${vybranyRok}</h2>
+                    <hr>
+                    <div style="display:flex; justify-content: space-between;">
+                        <div>
+                            <strong>Poskytovatel:</strong><br>
+                            AMK TRABANT PLZEŇ z.s.<br>
+                            IČ: 45333637
+                        </div>
+                        <div style="text-align: right;">
+                            <strong>Příjemce:</strong><br>
+                            ${t.name}<br>
+                            ${t.street || ''}, ${t.city || ''}
+                        </div>
                     </div>
-                    <hr style="margin: 30px 0;">
-                    <h3>Vyúčtování jednotky: ${t.unit || '-'}</h3>
-                    <table style="width:100%; border-collapse: collapse;">
-                        <tr><td style="padding: 10px; border: 1px solid #ddd;">Součet zaplacených záloh za rok:</td><td style="text-align:right; padding:10px; border:1px solid #ddd;">${totZalohy.toLocaleString()} Kč</td></tr>
-                        <tr><td style="padding: 10px; border: 1px solid #ddd;">Skutečné náklady (služby, opravy, energie):</td><td style="text-align:right; padding:10px; border:1px solid #ddd;">- ${totNaklady.toLocaleString()} Kč</td></tr>
-                        <tr style="font-weight:bold; font-size: 1.3em; background: #eee;">
-                            <td style="padding: 10px; border: 1px solid #ddd;">CELKOVÝ VÝSLEDEK:</td>
-                            <td style="text-align:right; padding:10px; border:1px solid #ddd; color: ${vysledek >= 0 ? 'green' : 'red'};">
+                    <p><strong>Jednotka:</strong> ${t.unit || '-'}</p>
+                    <table style="width:100%; border-collapse: collapse; margin: 20px 0;">
+                        <tr style="background: #f2f2f2;">
+                            <th style="border: 1px solid #ddd; padding: 10px;">Položka</th>
+                            <th style="border: 1px solid #ddd; padding: 10px; text-align: right;">Částka</th>
+                        </tr>
+                        <tr>
+                            <td style="border: 1px solid #ddd; padding: 10px;">Celkem zaplacené měsíční zálohy (12x ${t.zalohy} Kč)</td>
+                            <td style="border: 1px solid #ddd; padding: 10px; text-align: right;">${totZalohy.toLocaleString()} Kč</td>
+                        </tr>
+                        <tr>
+                            <td style="border: 1px solid #ddd; padding: 10px;">Skutečné náklady na služby a opravy za rok ${vybranyRok}</td>
+                            <td style="border: 1px solid #ddd; padding: 10px; text-align: right;">- ${totNaklady.toLocaleString()} Kč</td>
+                        </tr>
+                        <tr style="font-weight: bold; font-size: 1.2em;">
+                            <td style="border: 1px solid #ddd; padding: 10px;">VÝSLEDEK</td>
+                            <td style="border: 1px solid #ddd; padding: 10px; text-align: right; color: ${vysledek >= 0 ? 'green' : 'red'};">
                                 ${vysledek >= 0 ? 'PŘEPLATEK' : 'NEDOPLATEK'} ${Math.abs(vysledek).toLocaleString()} Kč
                             </td>
                         </tr>
                     </table>
-                    <div style="margin-top: 50px; font-size: 12px; color: #777;">Tento dokument slouží jako potvrzení o ročním vyúčtování. Vystaveno dne: ${new Date().toLocaleDateString()}</div>
+                    <p style="font-size: 0.9em; color: #666;">Poznámka: Vygenerováno dne ${new Date().toLocaleDateString()}.</p>
                 </div>
             </body>
             </html>
         `);
-    }
+    }}
 
     function closeModal() { document.getElementById('modal').style.display = 'none'; }
     function renderTenantView() {
