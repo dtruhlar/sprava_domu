@@ -2,76 +2,93 @@
 <html lang="cs">
 <head>
     <meta charset="utf-8">
-    <title>Správa nemovitostí AMK</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Správa AMK Plzeň</title>
     <style>
-        :root { --primary: #2563eb; --success: #16a34a; --danger: #dc2626; --bg: #f8fafc; --text: #1e293b; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
-        .container { max-width: 900px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
-        h1, h2 { color: #0f172a; margin-top: 0; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f7f6; color: #333; margin: 0; padding: 20px; }
+        .container { max-width: 900px; margin: auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        h1, h2 { color: #2c3e50; margin-top: 0; }
         
         /* Formuláře */
-        label { display: block; font-size: 12px; font-weight: 600; text-transform: uppercase; margin-bottom: 4px; color: #64748b; }
-        input, select, textarea { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
-        input:focus { border-color: var(--primary); outline: none; ring: 2px var(--primary); }
+        label { display: block; font-size: 12px; font-weight: bold; text-transform: uppercase; margin-bottom: 5px; color: #7f8c8d; }
+        input, select, textarea { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 14px; }
+        input:focus { border-color: #3498db; outline: none; }
         
         /* Tlačítka */
-        .btn { padding: 12px 24px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; transition: 0.2s; display: inline-block; text-align: center; }
-        .btn-p { background: var(--primary); color: white; }
-        .btn-p:hover { background: #1d4ed8; }
-        .btn-s { background: var(--success); color: white; }
-        .btn-o { background: transparent; border: 1px solid #cbd5e1; color: var(--text); }
-        .btn-o:hover { background: #f1f5f9; }
+        .btn { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px; transition: 0.2s; }
+        .btn-blue { background: #3498db; color: white; }
+        .btn-green { background: #27ae60; color: white; }
+        .btn-red { background: #e74c3c; color: white; }
+        .btn-gray { background: #ecf0f1; color: #333; border: 1px solid #bdc3c7; }
+        .btn:hover { opacity: 0.9; }
         
         /* Tabulka */
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th { background: #f1f5f9; padding: 12px; text-align: left; font-size: 13px; }
-        td { padding: 15px; border-bottom: 1px solid #f1f5f9; }
+        th { background: #f8f9fa; padding: 12px; text-align: left; font-size: 13px; color: #7f8c8d; border-bottom: 2px solid #ddd; }
+        td { padding: 15px; border-bottom: 1px solid #eee; }
         
-        /* Modály a stavy */
-        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; overflow-y: auto; padding: 20px; }
-        .modal-content { background: white; padding: 35px; border-radius: 12px; max-width: 700px; margin: auto; position: relative; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        /* Layout */
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
         .hidden { display: none; }
-        .card-section { background: #f1f5f9; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e2e8f0; }
+        .link { font-size: 12px; color: #3498db; cursor: pointer; text-decoration: underline; display: block; text-align: center; margin-top: 15px; }
+        
+        /* Modal */
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; overflow-y: auto; padding: 20px; }
+        .modal-content { background: white; padding: 30px; border-radius: 8px; max-width: 700px; margin: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        .section-box { background: #f8f9fa; padding: 15px; border-radius: 6px; border: 1px solid #e9ecef; margin-bottom: 20px; }
     </style>
 </head>
 <body>
 
 <div id="loginSection">
-    <div class="container" style="max-width: 400px; margin-top: 80px; text-align: center;">
-        <div id="box-login">
-            <h2>RealtyFlow Login</h2>
-            <div style="text-align: left;">
-                <label>Váš E-mail</label><input type="email" id="email" placeholder="email@seznam.cz">
-                <label>Heslo</label><input type="password" id="pass" placeholder="******">
-            </div>
-            <button class="btn btn-p" style="width:100%" onclick="handleLogin()">Přihlásit se</button>
-        </div>
+    <div class="container" style="max-width: 400px; margin-top: 80px;">
         
-        <div id="box-register" class="hidden">
-            <h2>Vytvořit heslo</h2>
-            <p style="font-size:14px; color:#64748b">Zadejte své nové heslo pro přístup do systému.</p>
-            <div style="text-align: left;">
-                <label>Nové heslo</label><input type="password" id="reg-p1">
-                <label>Heslo znovu</label><input type="password" id="reg-p2">
-            </div>
-            <button class="btn btn-s" style="width:100%" onclick="savePassword()">Uložit heslo</button>
+        <div id="box-login">
+            <h2 style="text-align: center;">Přihlášení</h2>
+            <label>E-mail</label><input type="email" id="email" placeholder="Zadejte svůj email">
+            <label>Heslo</label><input type="password" id="pass" placeholder="******">
+            <button class="btn btn-blue" style="width:100%" onclick="handleLogin()">Vstoupit do systému</button>
+            <a class="link" onclick="showBox('forgot')">Zapomněli jste heslo?</a>
         </div>
+
+        <div id="box-register" class="hidden">
+            <h2 style="text-align: center;">Nové heslo</h2>
+            <p style="font-size: 13px; color: #7f8c8d; text-align: center;">Nastavte si své heslo pro přístup do systému.</p>
+            <label>Nové heslo</label><input type="password" id="reg-p1">
+            <label>Heslo znovu</label><input type="password" id="reg-p2">
+            <button class="btn btn-green" style="width:100%" onclick="savePassword()">Uložit a přihlásit se</button>
+            <a class="link" onclick="showBox('login')">Zpět na přihlášení</a>
+        </div>
+
+        <div id="box-forgot" class="hidden">
+            <h2 style="text-align: center;">Obnova hesla</h2>
+            <p style="font-size: 13px; color: #7f8c8d; text-align: center;">Zadejte svůj e-mail, pošleme vám kód pro obnovu.</p>
+            <label>E-mail</label><input type="email" id="forgot-email">
+            <button class="btn btn-blue" style="width:100%" onclick="sendResetCode()">Odeslat ověřovací kód</button>
+            <a class="link" onclick="showBox('login')">Zpět na přihlášení</a>
+        </div>
+
+        <div id="box-verify" class="hidden">
+            <h2 style="text-align: center;">Ověření e-mailu</h2>
+            <p style="font-size: 13px; color: #7f8c8d; text-align: center;">Zadejte 6místný kód, který vám přišel na e-mail.</p>
+            <label>Kód z e-mailu</label><input type="text" id="verify-code" placeholder="123456">
+            <button class="btn btn-green" style="width:100%" onclick="verifyCode()">Ověřit kód</button>
+            <a class="link" onclick="showBox('login')">Zrušit</a>
+        </div>
+
     </div>
 </div>
 
 <div id="app" class="hidden">
     <div class="container">
-        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid #f1f5f9; padding-bottom: 15px; margin-bottom: 20px;">
-            <h1 id="appHeader" style="margin:0; font-size: 24px;">Administrace</h1>
-            <button class="btn btn-o" onclick="location.reload()">Odhlásit</button>
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid #eee; padding-bottom: 15px; margin-bottom: 20px;">
+            <h1 id="appHeader" style="margin:0;">Administrace</h1>
+            <button class="btn btn-red" onclick="location.reload()">Odhlásit se</button>
         </div>
 
         <div id="adminContent" class="hidden">
-            <button class="btn btn-s" onclick="openEdit(null)">+ Přidat nájemníka</button>
+            <button class="btn btn-green" onclick="openEdit(null)">+ Přidat nájemníka</button>
             <table>
-                <thead><tr><th>NÁJEMNÍK</th><th>JEDNOTKA</th><th>AKCE</th></tr></thead>
+                <thead><tr><th>JMÉNO NÁJEMNÍKA</th><th>JEDNOTKA</th><th>AKCE</th></tr></thead>
                 <tbody id="tBody"></tbody>
             </table>
         </div>
@@ -88,12 +105,12 @@
         <input type="hidden" id="f-rowidx">
         
         <div class="grid">
-            <div><label>Jméno a příjmení</label><input type="text" id="f-name"></div>
-            <div><label>Číslo jednotky / Bytu</label><input type="text" id="f-unit"></div>
+            <div><label>Celé jméno</label><input type="text" id="f-name"></div>
+            <div><label>Označení jednotky</label><input type="text" id="f-unit"></div>
         </div>
 
-        <div class="card-section">
-            <label>Adresa (Ulice a č.p.)</label><input type="text" id="f-street">
+        <div class="section-box">
+            <label>Ulice a č.p.</label><input type="text" id="f-street">
             <div class="grid">
                 <div><label>Město</label><input type="text" id="f-city"></div>
                 <div><label>PSČ</label><input type="text" id="f-zip"></div>
@@ -101,65 +118,67 @@
         </div>
 
         <div class="grid">
-            <div><label>E-mail</label><input type="text" id="f-email"></div>
+            <div><label>E-mail (Pro přihlášení)</label><input type="email" id="f-email"></div>
             <div><label>Telefon</label><input type="text" id="f-telefon"></div>
         </div>
 
         <div class="grid">
-            <div><label>Měsíční nájem (Kč)</label><input type="number" id="f-najem"></div>
+            <div><label>Měsíční nájemné (Kč)</label><input type="number" id="f-najem"></div>
             <div><label>Měsíční zálohy (Kč)</label><input type="number" id="f-zalohy"></div>
         </div>
         
-        <label>Smlouva platná do</label><input type="date" id="f-platnostdo">
+        <label>Platnost smlouvy do</label><input type="date" id="f-platnostdo">
 
-        <div id="meterSection" class="card-section"></div>
+        <div id="meterSection" class="section-box"></div>
 
-        <div class="card-section" style="background: #eff6ff; border-color: #bfdbfe;">
-            <h4 style="margin:0 0 10px 0; color: var(--primary);">Extra náklad (Služby / Opravy)</h4>
-            <label>Popis práce/služby</label><input type="text" id="c-desc">
+        <div class="section-box" style="background: #eef7ff; border-color: #b8daff;">
+            <h4 style="margin:0 0 10px 0; color: #004085;">Přidat extra náklad (Opravy, Služby)</h4>
+            <label>Popis nákladu</label><input type="text" id="c-desc" placeholder="např. Revize plynu">
             <div class="grid">
                 <div><label>Částka (Kč)</label><input type="number" id="c-price"></div>
                 <div><label>Datum provedení</label><input type="date" id="c-date"></div>
             </div>
-            <button class="btn btn-o" style="width:100%; border-color: var(--primary); color: var(--primary);" onclick="saveOnlyCost()">Zapsat pouze tento náklad</button>
+            <button class="btn btn-blue" style="width:100%" onclick="saveOnlyCost()">Zapsat POUZE tento náklad</button>
         </div>
 
         <div class="grid">
-            <button id="saveBtn" class="btn btn-s" onclick="handleSave()">Uložit celou kartu</button>
-            <button class="btn btn-p" onclick="generateSettlement()">Generovat vyúčtování (PDF)</button>
+            <button id="saveBtn" class="btn btn-green" onclick="handleSave()">Uložit celou kartu</button>
+            <button class="btn btn-gray" onclick="generateSettlement()">Vygenerovat vyúčtování</button>
         </div>
-        <button class="btn btn-o" style="width:100%; margin-top:15px;" onclick="closeModal()">Zavřít okno</button>
+        <button class="btn btn-gray" style="width:100%; margin-top:10px; background: white;" onclick="closeModal()">Zavřít bez uložení</button>
     </div>
 </div>
 
 <script>
-    // DOPLŇ SVOU URL Z GOOGLE SCRIPTOVÉHO NASAZENÍ
+    // ZDE DOPLŇ SVOU URL Z GOOGLE APPS SCRIPTU
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzfm7aHYnfodOGT1BRlmtQexj67oMFPNCfgQlOn1WLyJbivwyrdghxKJlrgA8_pni6Y/exec";
+    
     let DATA = null; let USER = null; let CUR_EMAIL = "";
 
+    // --- PŘEPÍNÁNÍ BOXŮ V LOGINU ---
+    function showBox(id) {
+        document.getElementById('box-login').classList.add('hidden');
+        document.getElementById('box-register').classList.add('hidden');
+        document.getElementById('box-forgot').classList.add('hidden');
+        document.getElementById('box-verify').classList.add('hidden');
+        document.getElementById('box-' + id).classList.remove('hidden');
+    }
+
+    // --- LOGIN A REGISTRACE ---
     async function handleLogin() {
-        CUR_EMAIL = document.getElementById('email').value;
+        CUR_EMAIL = document.getElementById('email').value.trim();
         const pass = document.getElementById('pass').value;
-        if(!CUR_EMAIL || !pass) return alert("Vyplňte email a heslo.");
+        if(!CUR_EMAIL || !pass) return alert("Zadejte email a heslo.");
 
         const resp = await fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify({action:'login', email:CUR_EMAIL, password:pass}) });
         const res = await resp.json();
         
         if(res.success) {
             if(res.mode === 'register') {
-                document.getElementById('box-login').classList.add('hidden');
-                document.getElementById('box-register').classList.remove('hidden');
+                showBox('register'); // Uživatel nemá heslo, jde ho nastavit
             } else {
                 USER = res; DATA = res.allData;
-                document.getElementById('loginSection').classList.add('hidden');
-                document.getElementById('app').classList.remove('hidden');
-                if(USER.role === 'admin') {
-                    document.getElementById('adminContent').classList.remove('hidden');
-                    renderAdminTable();
-                } else {
-                    document.getElementById('tenantContent').classList.remove('hidden');
-                    renderTenantView();
-                }
+                startApp();
             }
         } else { alert(res.msg); }
     }
@@ -167,29 +186,64 @@
     async function savePassword() {
         const p1 = document.getElementById('reg-p1').value;
         const p2 = document.getElementById('reg-p2').value;
-        if(p1 !== p2 || p1.length < 6) return alert("Hesla se neshodují nebo jsou krátká.");
+        if(p1 !== p2 || p1.length < 6) return alert("Hesla se neshodují nebo jsou kratší než 6 znaků.");
+        
         await fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify({action:'setPassword', email:CUR_EMAIL, password:p1}) });
-        alert("Heslo nastaveno! Nyní se prosím přihlaste.");
+        alert("Heslo bylo úspěšně nastaveno. Nyní se můžete přihlásit.");
         location.reload();
+    }
+
+    async function sendResetCode() {
+        CUR_EMAIL = document.getElementById('forgot-email').value.trim();
+        if(!CUR_EMAIL) return alert("Zadejte email.");
+        await fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify({action:'forgotPassword', email:CUR_EMAIL}) });
+        showBox('verify');
+    }
+
+    async function verifyCode() {
+        const code = document.getElementById('verify-code').value.trim();
+        const resp = await fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify({action:'verifyCode', email:CUR_EMAIL, code:code}) });
+        const res = await resp.json();
+        if (res.success) {
+            showBox('register'); // Recyklujeme okno pro zadání nového hesla
+        } else { alert("Neplatný kód."); }
+    }
+
+    // --- SPUŠTĚNÍ APLIKACE ---
+    function startApp() {
+        document.getElementById('loginSection').classList.add('hidden');
+        document.getElementById('app').classList.remove('hidden');
+        if(USER.role === 'admin') {
+            document.getElementById('adminContent').classList.remove('hidden');
+            renderAdminTable();
+        } else {
+            document.getElementById('tenantContent').classList.remove('hidden');
+            renderTenantView();
+        }
     }
 
     function renderAdminTable() {
         document.getElementById('tBody').innerHTML = DATA.tenants.map(t => `
             <tr>
-                <td><strong>${t.name}</strong><br><span style="font-size:11px; color:#64748b">${t.email}</span></td>
+                <td><strong>${t.name}</strong><br><span style="font-size:11px; color:#7f8c8d">${t.email}</span></td>
                 <td>${t.unit || '-'}</td>
-                <td><button class="btn btn-o" onclick="openEdit(${t.rowidx})">Spravovat</button></td>
+                <td><button class="btn btn-blue" onclick="openEdit(${t.rowidx})">Spravovat</button></td>
             </tr>
         `).join('');
     }
 
+    // --- PRÁCE S KARTOU NÁJEMNÍKA ---
     function openEdit(idx) {
         if(!idx) {
+            // Nový nájemník - vyčistit pole
             document.getElementById('f-rowidx').value = "";
             document.querySelectorAll('#modal input').forEach(i => i.value = "");
             document.getElementById('modalTitle').innerText = "Nový nájemník";
+            document.getElementById('meterSection').innerHTML = `<label>Počáteční stav vodoměru</label><input type="number" id="f-meterStart">`;
         } else {
+            // Editace existujícího
             const t = DATA.tenants.find(x => x.rowidx == idx);
+            document.getElementById('modalTitle').innerText = "Karta: " + t.name;
             document.getElementById('f-rowidx').value = t.rowidx;
             document.getElementById('f-name').value = t.name || "";
             document.getElementById('f-street').value = t.street || "";
@@ -202,11 +256,12 @@
             document.getElementById('f-unit').value = t.unit || "";
             if(t.platnostdo) document.getElementById('f-platnostdo').value = new Date(t.platnostdo).toISOString().split('T')[0];
 
+            // VODOMĚR
             const mHist = DATA.meters.filter(m => m.name && t.name && m.name.toString().trim().toLowerCase() === t.name.toString().trim().toLowerCase());
             const last = mHist[mHist.length-1];
             document.getElementById('meterSection').innerHTML = last ? 
-                `<div class="grid"><div><label>Poslední stav vodoměru</label><input id="f-meterStart" value="${last.koncovy}" readonly></div><div><label>Nový odečet (stav)</label><input type="number" id="f-meterEnd"></div></div>` :
-                `<label>Počáteční stav vodoměru při převzetí</label><input type="number" id="f-meterStart">`;
+                `<div class="grid"><div><label>Minulý stav vodoměru</label><input id="f-meterStart" value="${last.koncovy}" readonly style="background:#eee"></div><div><label>Nový odečet (stav)</label><input type="number" id="f-meterEnd"></div></div>` :
+                `<label>Počáteční stav vodoměru</label><input type="number" id="f-meterStart">`;
         }
         document.getElementById('modal').style.display = 'block';
     }
@@ -237,40 +292,42 @@
     }
 
     async function saveOnlyCost() {
-        const p = { name: document.getElementById('f-name').value, desc: document.getElementById('c-desc').value, price: document.getElementById('c-price').value, date: document.getElementById('c-date').value, year: new Date(document.getElementById('c-date').value).getFullYear() };
-        if(!p.name || !p.price) return alert("Vyplňte jméno a částku!");
+        const p = { 
+            name: document.getElementById('f-name').value, 
+            desc: document.getElementById('c-desc').value, 
+            price: document.getElementById('c-price').value, 
+            date: document.getElementById('c-date').value, 
+            year: new Date(document.getElementById('c-date').value).getFullYear() 
+        };
+        if(!p.name || !p.price || !p.date) return alert("Vyplňte jméno, částku a datum!");
+        
         const resp = await fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify({action:'addCost', payload:p}) });
-        DATA = await resp.json();
-        alert("Náklad zapsán.");
+        DATA = await resp.json(); // Aktualizuje data na pozadí
+        
+        document.getElementById('c-desc').value = "";
+        document.getElementById('c-price').value = "";
+        alert("Extra náklad zapsán.");
     }
 
+    // --- FAKTURA S VÝBĚREM ROKU ---
     function generateSettlement() {
         const name = document.getElementById('f-name').value.trim();
-        const t = DATA.tenants.find(x => x.name.trim().toLowerCase() === name.toLowerCase());
-        const curY = new Date().getFullYear();
+        if(!name) return alert("Nejdříve uložte nebo vyberte nájemníka.");
+
+        // Zobrazení výzvy k zadání roku (předvyplněn aktuální rok)
+        const defaultYear = new Date().getFullYear();
+        const targetYear = prompt("Zadejte ROK, za který chcete provést vyúčtování (např. 2024):", defaultYear);
         
-        const costs = DATA.costs.filter(c => 
-            c.name && c.name.toString().trim().toLowerCase() === name.toLowerCase() && c.year == curY
-        );
+        // Pokud uživatel klikne na Zrušit nebo smaže číslo, funkce se přeruší
+        if(!targetYear || isNaN(targetYear)) return; 
 
-        const totZalohy = Number(t.zalohy || 0) * 12;
-        const totNaklady = costs.reduce((sum, c) => sum + Number(c.price || 0), 0);
-        const vysledek = totZalohy - totNaklady;
+        const t = DATA.tenants.find(x => x.name.toString().trim().toLowerCase() === name.toLowerCase());
+        if(!t) return alert("Nájemník nenalezen v datech.");
 
-        function generateSettlement() {
-        const name = document.getElementById('f-name').value.trim();
-        if (!name) return alert("Nejdříve vyberte nájemníka.");
-
-        // ZEPTÁME SE NA ROK
-        const vybranyRok = prompt("Zadejte rok, za který chcete provést vyúčtování (např. 2024):", new Date().getFullYear());
-        if (!vybranyRok || isNaN(vybranyRok)) return; // Pokud uživatel stornuje nebo zadá blbost
-
-        const t = DATA.tenants.find(x => x.name.trim().toLowerCase() === name.toLowerCase());
-        
-        // FILTRUJEME NÁKLADY PODLE ZADANÉHO ROKU
+        // Filtrování nákladů přesně podle zadaného roku
         const costs = DATA.costs.filter(c => 
             c.name && c.name.toString().trim().toLowerCase() === name.toLowerCase() && 
-            c.year == vybranyRok
+            c.year == targetYear
         );
 
         const totZalohy = Number(t.zalohy || 0) * 12;
@@ -280,63 +337,71 @@
         const w = window.open("", "_blank");
         w.document.write(`
             <html>
-            <body style="font-family: Arial; padding: 40px; line-height: 1.6;">
-                <div style="max-width: 700px; margin: auto; border: 1px solid #ccc; padding: 30px;">
-                    <h2 style="text-align:center; color: #2c3e50;">ROČNÍ VYÚČTOVÁNÍ ZA ROK ${vybranyRok}</h2>
-                    <hr>
-                    <div style="display:flex; justify-content: space-between;">
+            <body style="font-family: Arial, sans-serif; padding: 40px; line-height: 1.6; color: #333;">
+                <div style="max-width: 700px; margin: auto; border: 1px solid #ddd; padding: 40px; box-shadow: 0 0 10px rgba(0,0,0,0.05);">
+                    <h2 style="text-align:center; color: #2c3e50; margin-bottom: 30px;">ROČNÍ VYÚČTOVÁNÍ ZA ROK ${targetYear}</h2>
+                    <div style="display:flex; justify-content: space-between; margin-bottom: 20px;">
                         <div>
-                            <strong>Poskytovatel:</strong><br>
-                            AMK TRABANT PLZEŇ z.s.<br>
+                            <span style="font-size: 12px; color: #7f8c8d;">POSKYTOVATEL:</span><br>
+                            <strong>AMK TRABANT PLZEŇ z.s.</strong><br>
+                            Úslavská 75, 326 00 Plzeň<br>
                             IČ: 45333637
                         </div>
                         <div style="text-align: right;">
-                            <strong>Příjemce:</strong><br>
-                            ${t.name}<br>
-                            ${t.street || ''}, ${t.city || ''}
+                            <span style="font-size: 12px; color: #7f8c8d;">PŘÍJEMCE:</span><br>
+                            <strong>${t.name}</strong><br>
+                            ${t.street || ''}<br>
+                            ${t.zip || ''} ${t.city || ''}
                         </div>
                     </div>
-                    <p><strong>Jednotka:</strong> ${t.unit || '-'}</p>
-                    <table style="width:100%; border-collapse: collapse; margin: 20px 0;">
-                        <tr style="background: #f2f2f2;">
-                            <th style="border: 1px solid #ddd; padding: 10px;">Položka</th>
-                            <th style="border: 1px solid #ddd; padding: 10px; text-align: right;">Částka</th>
+                    <hr style="border: 0; border-top: 1px solid #eee; margin: 30px 0;">
+                    <p><strong>Předmět nájmu (Jednotka):</strong> ${t.unit || '-'}</p>
+                    
+                    <table style="width:100%; border-collapse: collapse; margin-top: 20px;">
+                        <tr style="background: #f8f9fa;">
+                            <th style="border: 1px solid #ddd; padding: 12px; text-align: left;">Popis položky</th>
+                            <th style="border: 1px solid #ddd; padding: 12px; text-align: right;">Částka</th>
                         </tr>
                         <tr>
-                            <td style="border: 1px solid #ddd; padding: 10px;">Celkem zaplacené měsíční zálohy (12x ${t.zalohy} Kč)</td>
-                            <td style="border: 1px solid #ddd; padding: 10px; text-align: right;">${totZalohy.toLocaleString()} Kč</td>
+                            <td style="border: 1px solid #ddd; padding: 12px;">Úhrn zaplacených měsíčních záloh za rok ${targetYear}</td>
+                            <td style="border: 1px solid #ddd; padding: 12px; text-align: right;">${totZalohy.toLocaleString()} Kč</td>
                         </tr>
                         <tr>
-                            <td style="border: 1px solid #ddd; padding: 10px;">Skutečné náklady na služby a opravy za rok ${vybranyRok}</td>
-                            <td style="border: 1px solid #ddd; padding: 10px; text-align: right;">- ${totNaklady.toLocaleString()} Kč</td>
+                            <td style="border: 1px solid #ddd; padding: 12px;">Úhrn skutečných nákladů (služby, opravy, energie) za rok ${targetYear}</td>
+                            <td style="border: 1px solid #ddd; padding: 12px; text-align: right; color: #e74c3c;">- ${totNaklady.toLocaleString()} Kč</td>
                         </tr>
-                        <tr style="font-weight: bold; font-size: 1.2em;">
-                            <td style="border: 1px solid #ddd; padding: 10px;">VÝSLEDEK</td>
-                            <td style="border: 1px solid #ddd; padding: 10px; text-align: right; color: ${vysledek >= 0 ? 'green' : 'red'};">
+                        <tr style="font-size: 1.2em;">
+                            <td style="border: 1px solid #ddd; padding: 15px; font-weight: bold;">CELKOVÝ VÝSLEDEK VYÚČTOVÁNÍ</td>
+                            <td style="border: 1px solid #ddd; padding: 15px; text-align: right; font-weight: bold; color: ${vysledek >= 0 ? '#27ae60' : '#e74c3c'};">
                                 ${vysledek >= 0 ? 'PŘEPLATEK' : 'NEDOPLATEK'} ${Math.abs(vysledek).toLocaleString()} Kč
                             </td>
                         </tr>
                     </table>
-                    <p style="font-size: 0.9em; color: #666;">Poznámka: Vygenerováno dne ${new Date().toLocaleDateString()}.</p>
+                    <p style="font-size: 11px; color: #95a5a6; margin-top: 40px; text-align: center;">
+                        Vygenerováno systémem RealtyFlow dne: ${new Date().toLocaleDateString()}<br>
+                        Případný přeplatek bude vrácen na účet nájemce. Případný nedoplatek je splatný do 14 dnů.
+                    </p>
                 </div>
             </body>
             </html>
         `);
-    }}
+        w.document.close();
+    }
 
     function closeModal() { document.getElementById('modal').style.display = 'none'; }
+    
     function renderTenantView() {
         const t = DATA.tenants.find(x => x.email.toLowerCase() === USER.email.toLowerCase());
-        document.getElementById('appHeader').innerText = "Vítejte, " + (t ? t.name : "Uživatel");
+        document.getElementById('appHeader').innerText = "Vítejte, " + (t ? t.name : "Nájemníku");
         document.getElementById('tView').innerHTML = t ? `
-            <div style="background:white; padding:30px; border-radius:12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                <h3>Vaše aktuální údaje</h3>
-                <p>Jednotka: <b>${t.unit}</b></p>
-                <p>Měsíční nájem: <b>${t.najem} Kč</b></p>
-                <p>Měsíční zálohy: <b>${t.zalohy} Kč</b></p>
-                <p>Smlouva do: <b>${t.platnostdo ? new Date(t.platnostdo).toLocaleDateString() : 'Neurčito'}</b></p>
+            <div style="background:white; padding:30px; border-radius:8px; border: 1px solid #eee;">
+                <h3 style="margin-top:0">Přehled smlouvy</h3>
+                <p>Užívaná jednotka: <b>${t.unit || '-'}</b></p>
+                <p>Sjednané měsíční nájemné: <b>${t.najem} Kč</b></p>
+                <p>Sjednané měsíční zálohy na služby: <b>${t.zalohy} Kč</b></p>
+                <p>Smlouva platná do: <b>${t.platnostdo ? new Date(t.platnostdo).toLocaleDateString('cs-CZ') : 'Doba neurčitá'}</b></p>
             </div>
-        ` : "<p>Data nebyla nalezena.</p>";
+        ` : "<p>Zatím zde nemáte žádná data.</p>";
     }
 </script>
 </body>
