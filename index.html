@@ -111,14 +111,27 @@
     }
 
     function renderAdminTable() {
-        document.getElementById('tBody').innerHTML = DATA.tenants.map(t => `
-            <tr>
-                <td>${t.name}</td>
-                <td>${t.unit}</td>
-                <td><button class="btn" onclick="openEdit(${t.rowidx})">Spravovat</button></td>
-            </tr>
-        `).join('');
+    const curM = new Date().getMonth() + 1;
+    const curY = new Date().getFullYear();
+    
+    // ZÁMĚK: Pokud nejsem admin, tabulku s editačními prvky nevykreslím
+    if (USER.role !== 'admin') {
+        document.getElementById('adminContent').innerHTML = "<h3>Nemáte oprávnění k editaci.</h3>";
+        return;
     }
+
+    document.getElementById('tBody').innerHTML = DATA.tenants.map(t => {
+        const isPaid = DATA.payments.some(p => p.name.trim() === t.name.trim() && p.month == curM && p.year == curY && p.status == "OK");
+        return `<tr>
+            <td><b>${t.name}</b></td>
+            <td>${t.unit}</td>
+            <td><span class="badge ${isPaid ? 'b-ok' : 'b-wait'}">${isPaid ? 'UHRZENO' : 'ČEKÁ'}</span></td>
+            <td>
+                <button class="btn" style="width:auto; padding:5px 15px" onclick="openEdit(${t.rowidx})">Editovat</button>
+            </td>
+        </tr>`;
+    }).join('');
+}
 
     function renderTenantView() {
         const t = DATA.tenants.find(x => x.email === USER.email);
@@ -179,8 +192,15 @@
         alert("Požadavek odeslán.");
     }
 
-    function openEdit(idx) { 
-        const t = DATA.tenants.find(x => x.rowidx == idx);
+    function openEdit(idx) {
+    // Totální stopka pro kohokoliv jiného než admina
+    if (USER.role !== 'admin') {
+        alert("Přístup odepřen.");
+        return;
+    }
+
+    const t = DATA.tenants.find(x => x.rowidx == idx); 
+        
         document.getElementById('f-name').value = t.name;
         document.getElementById('modal').style.display = 'block'; 
     }
