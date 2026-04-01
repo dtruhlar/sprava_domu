@@ -595,7 +595,7 @@
         document.getElementById('preview-tbody').innerHTML = html; document.getElementById('preview-section').classList.remove('hidden');
     }
 
-    // PŘIDÁNO: Tlačítka a skript pro odeslání/tisk uvnitř nového okna vyúčtování
+    // OPRAVENÁ FUNKCE S \/script>
     function generateSettlement() {
         const name = document.getElementById('f-name').value;
         const rok = prompt("Zadejte rok vyúčtování:", new Date().getFullYear());
@@ -649,7 +649,7 @@
             <div id="obsahZuctovani" style="max-width:800px; margin:auto; border:1px solid #ccc; padding:40px;">
                 <h1 style="text-align:center;">ROČNÍ ZÚČTOVÁNÍ ${rok}</h1>
                 <div style="display:flex; justify-content:space-between; margin-bottom:30px;">
-                    <div><strong>Poskytovatel:</strong><br>AMK TRABANT PLZEŇ z.s.<br>IČ: 45333637<br>Úslavská 339/2, 326 00Plzeň</div>
+                    <div><strong>Poskytovatel:</strong><br>AMK TRABANT PLZEŇ z.s.<br>IČ: 45333637<br>Úslavská 339/2, 326 00 Plzeň</div>
                     <div style="text-align:right;"><strong>Příjemce:</strong><br>${t.name}${icoHtml}<br>${t.street||''}<br>${t.zip||''} ${t.city||''}</div>
                 </div>
                 <hr>
@@ -701,7 +701,7 @@
                         btn.disabled = false;
                     }
                 }
-            </script>
+            <\/script>
         </body></html>`);
         w.document.close();
     }
