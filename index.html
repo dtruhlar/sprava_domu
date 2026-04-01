@@ -115,7 +115,7 @@
         <div id="meterSection" style="background:#f8f9fa; padding:15px; border-radius:6px; margin-bottom:15px"></div>
 
         <div style="background: #eef7ff; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
-            <h4 style="margin:0 0 10px 0;">Přidat extra náklad</h4>
+            <h4 style="margin:0 0 10px 0;">Přidat extra náklad (mimo vyúčtování)</h4>
             <label>Popis</label><input type="text" id="c-desc">
             <div class="grid">
                 <div><label>Částka (Kč)</label><input type="number" id="c-price"></div>
@@ -126,14 +126,14 @@
 
         <div class="grid">
             <button id="saveBtn" class="btn btn-green" onclick="handleSave()">Uložit celou kartu</button>
-            <button class="btn btn-gray" onclick="generateSettlement()">Vyúčtování (Výběr roku)</button>
+            <button class="btn btn-gray" onclick="generateSettlement()">Vyúčtování (Roční zúčtování)</button>
         </div>
         <button class="btn btn-gray" style="width:100%; margin-top:10px; background: white;" onclick="closeModal()">Zavřít bez uložení</button>
     </div>
 </div>
 
 <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzfm7aHYnfodOGT1BRlmtQexj67oMFPNCfgQlOn1WLyJbivwyrdghxKJlrgA8_pni6Y/exec"; // DOPLŇ URL!!!
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzfm7aHYnfodOGT1BRlmtQexj67oMFPNCfgQlOn1WLyJbivwyrdghxKJlrgA8_pni6Y/exec";
     let DATA = null; let USER = null; let CUR_EMAIL = "";
     const mesiceNázvy = ["", "Leden", "Únor", "Březen", "Duben", "Květen", "Červen", "Červenec", "Srpen", "Září", "Říjen", "Listopad", "Prosinec"];
 
@@ -186,22 +186,22 @@
         else { document.getElementById('tenantContent').classList.remove('hidden'); renderTenantView(); }
     }
 
-    // VYKRESLENÍ TABULKY S DYNAMICKÝMI ŠTÍTKY (Nezaplacené měsíce)
     function renderAdminTable() {
         const curM = new Date().getMonth() + 1;
         const curY = new Date().getFullYear();
 
         document.getElementById('tBody').innerHTML = DATA.tenants.map(t => {
             let dluzneMesice = [];
-            let ocekavanoCelkem = Number(t.najem || 0) + Number(t.zalohy || 0);
+            // Blbuvzdorné načtení zálohy a nájmu z tabulky
+            let zalohaCislo = Number(t.zalohy || t.zaloha || t.mesicnizalohy || 0);
+            let najemCislo = Number(t.najem || 0);
+            let ocekavanoCelkem = najemCislo + zalohaCislo;
 
-            // Projedeme měsíce od ledna do aktuálního měsíce
             for(let m = 1; m <= curM; m++) {
                 let zaplacenoVMesici = DATA.payments
                     .filter(p => p.name && p.name.trim().toLowerCase() === t.name.trim().toLowerCase() && p.year == curY && p.month == m)
                     .reduce((sum, p) => sum + Number(p.amount || 0), 0);
                 
-                // Pokud je očekáváno > 0 a zaplatil méně než měl, jde do dluhu
                 if(ocekavanoCelkem > 0 && zaplacenoVMesici < ocekavanoCelkem) {
                     dluzneMesice.push(mesiceNázvy[m]);
                 }
@@ -230,15 +230,17 @@
             document.getElementById('f-rowidx').value = t.rowidx;
             document.getElementById('f-name').value = t.name || "";
             document.getElementById('f-unit').value = t.unit || "";
-            document.getElementById('f-vs').value = t.vs || ""; // NAČTENÍ VS
+            document.getElementById('f-vs').value = t.vs || ""; 
             document.getElementById('f-street').value = t.street || "";
             document.getElementById('f-city').value = t.city || "";
             document.getElementById('f-zip').value = t.zip || "";
             document.getElementById('f-email').value = t.email || "";
             document.getElementById('f-telefon').value = t.telefon || "";
             document.getElementById('f-najem').value = t.najem || 0;
-            document.getElementById('f-zalohy').value = t.zalohy || 0;
-            document.getElementById('f-pocetosob').value = t.pocetosob || 1;
+            // OPRAVA ZÁLOH: Hledá všechny možné varianty názvu sloupce
+            document.getElementById('f-zalohy').value = t.zalohy || t.zaloha || t.mesicnizalohy || 0;
+            document.getElementById('f-pocetosob').value = t.pocetosob || t.osob || 1;
+            
             if(t.platnostdo) document.getElementById('f-platnostdo').value = new Date(t.platnostdo).toISOString().split('T')[0];
 
             const mHist = DATA.meters.filter(m => m.name && t.name && m.name.toString().trim().toLowerCase() === t.name.toString().trim().toLowerCase());
@@ -256,7 +258,7 @@
             rowidx: document.getElementById('f-rowidx').value,
             name: document.getElementById('f-name').value,
             unit: document.getElementById('f-unit').value,
-            vs: document.getElementById('f-vs').value, // ULOŽENÍ VS
+            vs: document.getElementById('f-vs').value, 
             street: document.getElementById('f-street').value,
             city: document.getElementById('f-city').value,
             zip: document.getElementById('f-zip').value,
@@ -281,32 +283,80 @@
         DATA = await resp.json(); alert("Zapsáno."); document.getElementById('c-desc').value = ""; document.getElementById('c-price').value = "";
     }
 
+    // NOVÉ ROZPISOVÉ VYÚČTOVÁNÍ
     function generateSettlement() {
         const name = document.getElementById('f-name').value.trim();
         if(!name) return alert("Vyberte nájemníka.");
-        const vybranyRok = prompt("Zadejte rok pro vyúčtování:", new Date().getFullYear());
+        
+        const vybranyRok = prompt("Zadejte rok pro vyúčtování (např. 2024):", new Date().getFullYear());
         if(!vybranyRok || isNaN(vybranyRok)) return; 
 
         const t = DATA.tenants.find(x => x.name.toString().trim().toLowerCase() === name.toLowerCase());
-        const costs = DATA.costs.filter(c => c.name && c.name.toString().trim().toLowerCase() === name.toLowerCase() && c.year == vybranyRok);
+        
+        // Zjištění měsíčního předpisu
+        const tZaloha = Number(t.zalohy || t.zaloha || t.mesicnizalohy || 0);
+        const tNajem = Number(t.najem || 0);
+        const mesicniPredpis = tZaloha + tNajem;
 
-        const totZalohy = Number(t.zalohy || 0) * 12;
+        // Kolik úhrad přišlo v daném roce?
+        const platbyRoku = DATA.payments.filter(p => p.name && p.name.trim().toLowerCase() === name.toLowerCase() && p.year == vybranyRok);
+        const celkemZaplaceno = platbyRoku.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+        
+        // Výpočet počtu uhrazených měsíců
+        let pocetMesicu = 0;
+        if(mesicniPredpis > 0) {
+            pocetMesicu = Math.floor(celkemZaplaceno / mesicniPredpis);
+        }
+        
+        const celkemVybranoNaZalohach = pocetMesicu * tZaloha;
+        const celkemVybranoNaNajmu = pocetMesicu * tNajem;
+
+        // Náklady v daném roce
+        const costs = DATA.costs.filter(c => c.name && c.name.toString().trim().toLowerCase() === name.toLowerCase() && c.year == vybranyRok);
         const totNaklady = costs.reduce((sum, c) => sum + Number(c.price || 0), 0);
-        const vysledek = totZalohy - totNaklady;
+        
+        // Generování HTML rozpisu nákladů
+        let nakladyHtml = costs.map(c => `<tr><td style="border:1px solid #ddd; padding:10px;">${c.description || c.desc || 'Náklad'} (${c.date ? new Date(c.date).toLocaleDateString('cs-CZ') : ''})</td><td style="border:1px solid #ddd; padding:10px; text-align:right;">${c.price} Kč</td></tr>`).join('');
+        if(costs.length === 0) nakladyHtml = `<tr><td colspan="2" style="border:1px solid #ddd; padding:10px; text-align:center;">V tomto roce nebyly evidovány žádné náklady</td></tr>`;
+
+        // Finální výsledek (Zálohy - Náklady)
+        const vysledek = celkemVybranoNaZalohach - totNaklady;
 
         const w = window.open("", "_blank");
-        w.document.write(`<html><body style="font-family:Arial; padding:40px;">
-            <div style="max-width:700px; margin:auto; border:1px solid #ddd; padding:40px;">
-                <h2 style="text-align:center;">ROČNÍ VYÚČTOVÁNÍ ${vybranyRok}</h2>
-                <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
-                    <div><strong>Poskytovatel:</strong><br>AMK TRABANT PLZEŇ z.s.<br>IČ: 45333637</div>
-                    <div style="text-align:right;"><strong>Příjemce:</strong><br>${t.name}<br>${t.street||''}<br>${t.zip||''} ${t.city||''}</div>
-                </div><hr>
-                <table style="width:100%; border-collapse:collapse; margin-top:20px;">
-                    <tr><td style="border:1px solid #ddd; padding:12px;">Úhrn zaplacených záloh</td><td style="border:1px solid #ddd; padding:12px; text-align:right;">${totZalohy} Kč</td></tr>
-                    <tr><td style="border:1px solid #ddd; padding:12px;">Skutečné náklady</td><td style="border:1px solid #ddd; padding:12px; text-align:right; color:red;">- ${totNaklady} Kč</td></tr>
-                    <tr style="font-size:1.2em; font-weight:bold;"><td style="border:1px solid #ddd; padding:15px;">VÝSLEDEK</td><td style="border:1px solid #ddd; padding:15px; text-align:right; color:${vysledek>=0?'green':'red'};">${vysledek>=0?'PŘEPLATEK':'NEDOPLATEK'} ${Math.abs(vysledek)} Kč</td></tr>
+        w.document.write(`<html><body style="font-family:Arial, sans-serif; padding:40px; color: #333;">
+            <div style="max-width:800px; margin:auto; border:1px solid #ddd; padding:40px; box-shadow: 0 0 10px rgba(0,0,0,0.05);">
+                <h1 style="text-align:center; color: #2c3e50;">ROČNÍ ZÚČTOVÁNÍ ZÁLOH ${vybranyRok}</h1>
+                <div style="display:flex; justify-content:space-between; margin-top:30px; margin-bottom:30px;">
+                    <div><strong>Poskytovatel:</strong><br>AMK TRABANT PLZEŇ z.s.<br>IČ: 45333637<br>Úslavská 75, Plzeň</div>
+                    <div style="text-align:right;"><strong>Nájemce:</strong><br>${t.name}<br>${t.street||''}<br>${t.zip||''} ${t.city||''}</div>
+                </div>
+                <hr style="border:0; border-top:1px solid #eee; margin-bottom: 20px;">
+                
+                <h3>1. Rekapitulace plateb (${vybranyRok})</h3>
+                <p>Měsíční předpis: Nájemné ${tNajem} Kč + Zálohy ${tZaloha} Kč = Celkem ${mesicniPredpis} Kč / měsíc.</p>
+                <table style="width:100%; border-collapse:collapse; margin-bottom:30px;">
+                    <tr><td style="border:1px solid #ddd; padding:10px;">Počet uhrazených měsíců:</td><td style="border:1px solid #ddd; padding:10px; text-align:right;"><strong>${pocetMesicu}</strong></td></tr>
+                    <tr><td style="border:1px solid #ddd; padding:10px;">Z toho uhrazeno na nájemném (${pocetMesicu} x ${tNajem} Kč):</td><td style="border:1px solid #ddd; padding:10px; text-align:right;">${celkemVybranoNaNajmu} Kč</td></tr>
+                    <tr style="background:#f8f9fa;"><td style="border:1px solid #ddd; padding:10px; font-weight:bold;">Z toho uhrazeno na zálohách (${pocetMesicu} x ${tZaloha} Kč):</td><td style="border:1px solid #ddd; padding:10px; text-align:right; font-weight:bold;">${celkemVybranoNaZalohach} Kč</td></tr>
                 </table>
+
+                <h3>2. Rozpis skutečných nákladů na služby</h3>
+                <table style="width:100%; border-collapse:collapse; margin-bottom:30px;">
+                    <tr style="background:#f8f9fa;"><th style="border:1px solid #ddd; padding:10px; text-align:left;">Položka / Služba</th><th style="border:1px solid #ddd; padding:10px; text-align:right;">Cena</th></tr>
+                    ${nakladyHtml}
+                    <tr><td style="border:1px solid #ddd; padding:10px; font-weight:bold; text-align:right;">Skutečné náklady CELKEM:</td><td style="border:1px solid #ddd; padding:10px; text-align:right; font-weight:bold; color:#e74c3c;">- ${totNaklady} Kč</td></tr>
+                </table>
+
+                <h3>3. Finální vyrovnání</h3>
+                <table style="width:100%; border-collapse:collapse;">
+                    <tr><td style="border:1px solid #ddd; padding:15px; font-size:1.2em;"><strong>VÝSLEDEK ZÚČTOVÁNÍ (Zálohy - Náklady)</strong></td>
+                    <td style="border:1px solid #ddd; padding:15px; text-align:right; font-size:1.2em; font-weight:bold; color:${vysledek>=0?'#27ae60':'#e74c3c'};">
+                        ${vysledek>=0?'PŘEPLATEK':'NEDOPLATEK'} ${Math.abs(vysledek)} Kč
+                    </td></tr>
+                </table>
+                <p style="font-size: 11px; color: #95a5a6; margin-top: 40px; text-align: center;">
+                    Vygenerováno dne: ${new Date().toLocaleDateString('cs-CZ')}
+                </p>
             </div></body></html>`);
         w.document.close();
     }
@@ -315,7 +365,7 @@
     function renderTenantView() {
         const t = DATA.tenants.find(x => x.email.toLowerCase() === USER.email.toLowerCase());
         document.getElementById('appHeader').innerText = "Vítejte, " + (t ? t.name : "Nájemníku");
-        document.getElementById('tView').innerHTML = t ? `<div style="background:white; padding:30px; border-radius:8px;"><h3>Vaše jednotka: ${t.unit}</h3><p>Nájem: <b>${t.najem} Kč</b></p><p>Zálohy: <b>${t.zalohy} Kč</b></p><p>VS pro platby: <b>${t.vs || 'Není zadán'}</b></p></div>` : "";
+        document.getElementById('tView').innerHTML = t ? `<div style="background:white; padding:30px; border-radius:8px; border: 1px solid #eee;"><h3>Vaše jednotka: ${t.unit}</h3><p>Nájem: <b>${t.najem} Kč</b></p><p>Zálohy: <b>${t.zalohy || t.zaloha || 0} Kč</b></p><p>VS pro platby: <b>${t.vs || 'Není zadán'}</b></p></div>` : "";
     }
 </script>
 </body>
