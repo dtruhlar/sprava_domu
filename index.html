@@ -2,81 +2,57 @@
 <html lang="cs">
 <head>
     <meta charset="utf-8">
-    <title>RealtyFlow Premium | Admin</title>
+    <title>RealtyFlow Premium</title>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
         :root { 
-            --accent: #6366f1; --accent-hover: #4f46e5;
-            --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --sub: #94a3b8;
-            --border: rgba(255,255,255,0.1); --success: #10b981; --danger: #ef4444;
+            --accent: #6366f1; --bg: #0f172a; --card: #1e293b; --text: #f8fafc; 
+            --sub: #94a3b8; --border: rgba(255,255,255,0.1); --success: #10b981; --danger: #ef4444;
         }
-        body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); color: var(--text); margin:0; line-height: 1.6; }
-        
-        /* Login Screen Rebrand */
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); color: var(--text); margin:0; }
         .login-screen { display: flex; align-items: center; justify-content: center; height: 100vh; background: radial-gradient(circle at top left, #1e1b4b, #0f172a); }
-        .login-card { background: var(--card); padding: 40px; border-radius: 24px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); width: 100%; max-width: 400px; border: 1px solid var(--border); }
-        
-        /* Layout */
-        #app { display: none; padding: 40px; max-width: 1200px; margin: auto; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
-        
-        /* UI Elements */
-        .glass-card { background: var(--card); padding: 24px; border-radius: 20px; border: 1px solid var(--border); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
-        input, textarea, select { width: 100%; padding: 12px 16px; background: #0f172a; border: 1px solid var(--border); border-radius: 12px; color: white; font-family: inherit; margin-bottom: 15px; transition: 0.2s; }
-        input:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2); }
-        label { font-size: 11px; font-weight: 700; color: var(--sub); text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 6px; }
-        
-        .btn { padding: 12px 24px; border-radius: 12px; font-weight: 600; cursor: pointer; border: none; transition: 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
-        .btn-primary { background: var(--accent); color: white; }
-        .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
-        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
-        
-        /* Table Design */
+        .login-card { background: var(--card); padding: 40px; border-radius: 24px; width: 100%; max-width: 380px; border: 1px solid var(--border); box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
+        #app { display: none; padding: 40px; max-width: 1100px; margin: auto; }
+        .glass-card { background: var(--card); padding: 24px; border-radius: 20px; border: 1px solid var(--border); margin-bottom: 20px; }
+        input, textarea { width: 100%; padding: 12px; background: #0f172a; border: 1px solid var(--border); border-radius: 10px; color: white; margin-bottom: 12px; box-sizing: border-box; font-family: inherit; }
+        label { font-size: 10px; font-weight: 700; color: var(--sub); text-transform: uppercase; margin-bottom: 4px; display: block; }
+        .btn { padding: 12px 20px; border-radius: 10px; font-weight: 600; cursor: pointer; border: none; transition: 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn-p { background: var(--accent); color: white; width: 100%; }
+        .btn-o { background: transparent; border: 1px solid var(--border); color: var(--text); }
         table { width: 100%; border-collapse: separate; border-spacing: 0 8px; }
-        th { padding: 12px 20px; color: var(--sub); font-weight: 600; text-align: left; font-size: 12px; }
-        td { padding: 16px 20px; background: var(--card); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
-        td:first-child { border-left: 1px solid var(--border); border-radius: 16px 0 0 16px; }
-        td:last-child { border-right: 1px solid var(--border); border-radius: 0 16px 16px 0; }
-        
-        .badge { padding: 4px 12px; border-radius: 8px; font-size: 11px; font-weight: 700; }
-        .b-ok { background: rgba(16, 185, 129, 0.1); color: var(--success); }
-        .b-wait { background: rgba(239, 68, 68, 0.1); color: var(--danger); }
-
-        /* Modal Rebrand */
-        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); z-index: 1000; padding: 20px; overflow-y: auto; }
-        .modal-content { background: var(--card); padding: 40px; border-radius: 28px; width: 100%; max-width: 700px; margin: 20px auto; border: 1px solid var(--border); }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        .section-title { font-size: 18px; font-weight: 700; color: var(--accent); margin: 30px 0 15px 0; display: flex; align-items: center; gap: 10px; }
-        .section-title::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+        td { padding: 16px; background: var(--card); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+        td:first-child { border-left: 1px solid var(--border); border-radius: 12px 0 0 12px; }
+        td:last-child { border-right: 1px solid var(--border); border-radius: 0 12px 12px 0; }
+        .badge { padding: 4px 10px; border-radius: 6px; font-size: 10px; font-weight: 700; }
+        .b-ok { background: rgba(16,185,129,0.1); color: var(--success); }
+        .b-wait { background: rgba(239,68,68,0.1); color: var(--danger); }
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); z-index: 1000; padding: 20px; overflow-y: auto; }
+        .modal-content { background: var(--card); padding: 35px; border-radius: 24px; max-width: 650px; margin: auto; border: 1px solid var(--border); }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .section-title { font-size: 16px; font-weight: 700; color: var(--accent); margin: 25px 0 10px 0; border-bottom: 1px solid var(--border); padding-bottom: 5px; }
     </style>
 </head>
 <body>
 
 <div id="loginSection" class="login-screen">
     <div class="login-card">
-        <h1 style="margin: 0 0 10px 0; font-size: 24px">RealtyFlow <span style="font-weight:300; color:var(--accent)">Pro</span></h1>
-        <p style="color:var(--sub); margin-bottom: 30px; font-size: 14px">Přihlaste se do správy nemovitostí</p>
-        <label>E-mail</label><input type="email" id="logEmail" placeholder="vas@email.cz">
-        <label>Heslo</label><input type="password" id="logPass" placeholder="••••••••">
-        <button class="btn btn-primary" style="width:100%" onclick="handleLogin()">Vstoupit do systému</button>
+        <h2 style="margin:0 0 20px 0">RealtyFlow <span style="font-weight:300;color:var(--accent)">Pro</span></h2>
+        <label>E-mail</label><input type="email" id="logEmail">
+        <label>Heslo</label><input type="password" id="logPass">
+        <button class="btn btn-p" onclick="handleLogin()">Přihlásit se</button>
     </div>
 </div>
 
 <div id="app">
-    <div class="header">
-        <div>
-            <h1 id="viewTitle" style="margin:0">Přehled jednotek</h1>
-            <p id="subTitle" style="color:var(--sub); margin:5px 0 0 0">Vítejte zpět, administrátore</p>
-        </div>
-        <button class="btn btn-outline" onclick="location.reload()">Odhlásit se</button>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:30px">
+        <h1>Správa Portfolia</h1>
+        <button class="btn btn-o" onclick="location.reload()">Odhlásit</button>
     </div>
 
     <div id="adminContent" style="display:none">
-        <div style="margin-bottom: 25px; display:flex; gap:10px">
-            <button class="btn btn-primary" onclick="openModal()">+ Přidat nájemníka</button>
-        </div>
+        <button class="btn btn-p" style="width:auto; margin-bottom:20px" onclick="openModal()">+ Nový nájemník</button>
         <table>
-            <thead><tr><th>NÁJEMNÍK</th><th>JEDNOTKA</th><th>STAV PLATBY</th><th>AKCE</th></tr></thead>
+            <thead><tr style="text-align:left; color:var(--sub); font-size:12px"><th style="padding:10px">NÁJEMNÍK</th><th>JEDNOTKA</th><th>PLATBA</th><th>AKCE</th></tr></thead>
             <tbody id="tBody"></tbody>
         </table>
     </div>
@@ -84,11 +60,11 @@
     <div id="tenantContent" style="display:none">
         <div class="glass-card">
             <h2 id="tWelcome">Vítejte</h2>
-            <div id="tDetails" class="grid" style="margin-top:20px"></div>
-            <div style="margin-top:30px">
-                <label>Požadavek na správu</label>
-                <textarea id="tMessage" rows="4" placeholder="Potřebujete něco opravit?"></textarea>
-                <button class="btn btn-primary" onclick="sendTenantRequest()">Odeslat zprávu</button>
+            <div id="tDetails" class="grid"></div>
+            <div style="margin-top:20px">
+                <label>Zpráva pro správu</label>
+                <textarea id="tMessage" rows="4"></textarea>
+                <button class="btn btn-p" style="width:auto" onclick="sendTenantRequest()">Odeslat požadavek</button>
             </div>
         </div>
     </div>
@@ -99,7 +75,7 @@
         <h2 id="mTitle" style="margin-top:0">Karta nájemníka</h2>
         <input type="hidden" id="f-rowidx">
         
-        <div class="section-title">Hlavní iniciály a kontakt</div>
+        <div class="section-title">Iniciály nájemníka</div>
         <label>Celé jméno</label><input type="text" id="f-name">
         <div class="grid">
             <div><label>Ulice a č.p.</label><input type="text" id="f-street"></div>
@@ -113,35 +89,35 @@
             <div><label>Telefon</label><input type="text" id="f-telefon"></div>
         </div>
 
-        <div class="section-title">Smluvní podmínky</div>
+        <div class="section-title">Smluvní údaje</div>
         <div class="grid">
-            <div><label>Označení jednotky</label><input type="text" id="f-unit"></div>
+            <div><label>Jednotka</label><input type="text" id="f-unit"></div>
             <div><label>Smlouva do</label><input type="date" id="f-platnostdo"></div>
         </div>
         <div class="grid" style="grid-template-columns: 1fr 1fr 1fr">
-            <div><label>Nájemné (Kč)</label><input type="number" id="f-najem"></div>
+            <div><label>Nájem (Kč)</label><input type="number" id="f-najem"></div>
             <div><label>Zálohy (Kč)</label><input type="number" id="f-zalohy"></div>
-            <div><label>Počet osob</label><input type="number" id="f-pocetosob"></div>
+            <div><label>Osoby</label><input type="number" id="f-pocetosob"></div>
         </div>
 
-        <div class="section-title">Vodoměry</div>
-        <div id="meterSection" style="background:rgba(0,0,0,0.2); padding:20px; border-radius:16px"></div>
+        <div class="section-title">Vodoměr</div>
+        <div id="meterSection" style="background:rgba(0,0,0,0.2); padding:15px; border-radius:12px"></div>
 
-        <div class="section-title">Extra náklad (antidatování)</div>
-        <div style="background:rgba(0,0,0,0.2); padding:20px; border-radius:16px">
-            <label>Popis služby/nákladu</label><input type="text" id="c-desc" placeholder="např. Revize kotle">
+        <div class="section-title">Extra náklad</div>
+        <div style="background:rgba(0,0,0,0.2); padding:15px; border-radius:12px">
+            <label>Popis</label><input type="text" id="c-desc">
             <div class="grid">
                 <div><label>Částka Kč</label><input type="number" id="c-price"></div>
-                <div><label>Datum nákladu</label><input type="date" id="c-date"></div>
+                <div><label>Datum</label><input type="date" id="c-date"></div>
             </div>
-            <button class="btn btn-outline" style="width:100%; border-color:var(--accent); color:var(--accent)" onclick="saveOnlyCost()">Přidat tento náklad extra</button>
+            <button class="btn btn-o" style="width:100%; border-color:var(--accent)" onclick="saveOnlyCost()">Uložit jen náklad</button>
         </div>
 
-        <div style="margin-top:40px; display:flex; gap:15px">
-            <button class="btn btn-primary" style="flex:2" onclick="handleSave()">Uložit vše</button>
-            <button class="btn btn-outline" style="flex:1; background:#000" onclick="generateSettlement()">Faktura</button>
+        <div style="margin-top:30px; display:flex; gap:10px">
+            <button id="mainSaveBtn" class="btn btn-p" style="flex:2" onclick="handleSave()">Uložit celou kartu</button>
+            <button class="btn btn-o" style="flex:1; background:#000" onclick="generateSettlement()">Faktura</button>
         </div>
-        <button class="btn btn-outline" style="width:100%; margin-top:10px; border:none; color:var(--sub)" onclick="closeModal()">Zavřít</button>
+        <button class="btn btn-o" style="width:100%; margin-top:10px; border:none" onclick="closeModal()">Zavřít</button>
     </div>
 </div>
 
@@ -156,25 +132,20 @@
             USER = res; DATA = res.allData;
             document.getElementById('loginSection').style.display='none';
             document.getElementById('app').style.display='block';
-            if(res.role==='admin') {
-                document.getElementById('adminContent').style.display='block';
-                renderAdminTable();
-            } else {
-                document.getElementById('tenantContent').style.display='block';
-                renderTenantView();
-            }
-        } else { alert("Přihlášení selhalo."); }
+            if(res.role==='admin') { document.getElementById('adminContent').style.display='block'; renderAdminTable(); }
+            else { document.getElementById('tenantContent').style.display='block'; renderTenantView(); }
+        } else { alert("Chyba přihlášení."); }
     }
 
     function renderAdminTable() {
-        const curM = new Date().getMonth()+1; const curY = new Date().getFullYear();
+        const m = new Date().getMonth()+1; const y = new Date().getFullYear();
         document.getElementById('tBody').innerHTML = DATA.tenants.map(t => {
-            const isPaid = DATA.payments.some(p => p.name.trim() === t.name.trim() && p.month == curM && p.year == curY && p.status == "OK");
+            const isPaid = DATA.payments.some(p => p.name && t.name && p.name.trim() === t.name.trim() && p.month == m && p.year == y && p.status == "OK");
             return `<tr>
-                <td><div style="font-weight:700">${t.name}</div><div style="font-size:11px; color:var(--sub)">${t.email}</div></td>
-                <td>${t.unit}</td>
-                <td><span class="badge ${isPaid?'b-ok':'b-wait'}">${isPaid?'● UHRZENO':'○ ČEKÁ'}</span></td>
-                <td><button class="btn btn-outline" style="padding:6px 12px; font-size:12px" onclick="openEdit(${t.rowidx})">Spravovat</button></td>
+                <td><b>${t.name}</b><div style="font-size:10px;color:var(--sub)">${t.email}</div></td>
+                <td>${t.unit || '-'}</td>
+                <td><span class="badge ${isPaid?'b-ok':'b-wait'}">${isPaid?'UHRZENO':'ČEKÁ'}</span></td>
+                <td><button class="btn btn-o" style="padding:5px 10px; font-size:11px" onclick="openEdit(${t.rowidx})">Spravovat</button></td>
             </tr>`;
         }).join('');
     }
@@ -182,7 +153,6 @@
     function openEdit(idx) {
         if(USER.role !== 'admin') return;
         const t = DATA.tenants.find(x => x.rowidx == idx);
-        // PLNĚNÍ INICIÁLŮ (Nyní funguje!)
         document.getElementById('f-rowidx').value = t.rowidx;
         document.getElementById('f-name').value = t.name || "";
         document.getElementById('f-street').value = t.street || "";
@@ -194,31 +164,19 @@
         document.getElementById('f-najem').value = t.najem || 0;
         document.getElementById('f-zalohy').value = t.zalohy || 0;
         document.getElementById('f-pocetosob').value = t.pocetosob || 1;
-        document.getElementById('f-platnostdo').value = t.platnostdo ? new Date(t.platnostdo).toISOString().split('T')[0] : "";
-        
-        // Vodoměr
-        const mHist = DATA.meters.filter(m => m.name.trim() === t.name.trim());
+        if(t.platnostdo) document.getElementById('f-platnostdo').value = new Date(t.platnostdo).toISOString().split('T')[0];
+
+        const mHist = DATA.meters.filter(m => m.name && t.name && m.name.trim() === t.name.trim());
         const last = mHist[mHist.length-1];
         document.getElementById('meterSection').innerHTML = last ? 
-            `<div class="grid"><div><label>Minulý stav</label><input value="${last.koncovy}" readonly></div><div><label>Nový stav</label><input type="number" id="f-meterEnd"></div><input type="hidden" id="f-meterStart" value="${last.koncovy}"></div>` :
-            `<label>První počáteční stav</label><input type="number" id="f-meterStart">`;
-            
+            `<div class="grid"><div><label>Minulý</label><input id="f-meterStart" value="${last.koncovy}" readonly></div><div><label>Nový</label><input type="number" id="f-meterEnd"></div></div>` :
+            `<label>Počáteční stav</label><input type="number" id="f-meterStart">`;
         document.getElementById('modal').style.display='block';
     }
 
-    async function saveOnlyCost() {
-        const p = {
-            name: document.getElementById('f-name').value,
-            desc: document.getElementById('c-desc').value,
-            price: document.getElementById('c-price').value,
-            date: document.getElementById('c-date').value,
-            year: new Date(document.getElementById('c-date').value).getFullYear()
-        };
-        await fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify({action:'addCost', payload:p}) });
-        alert("Extra náklad uložen do historie.");
-    }
-
     async function handleSave() {
+        const btn = document.getElementById('mainSaveBtn');
+        btn.innerText = "Ukládám...";
         const p = {
             rowidx: document.getElementById('f-rowidx').value,
             name: document.getElementById('f-name').value,
@@ -235,16 +193,55 @@
             meterStart: document.getElementById('f-meterStart')?.value || "",
             meterEnd: document.getElementById('f-meterEnd')?.value || ""
         };
-        await fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify({action:'saveTenant', payload:p}) });
-        location.reload();
+        const resp = await fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify({action:'saveTenant', payload:p}) });
+        DATA = await resp.json();
+        renderAdminTable();
+        btn.innerText = "Uložit celou kartu";
+        closeModal();
+        alert("Uloženo.");
+    }
+
+    async function saveOnlyCost() {
+        const p = {
+            name: document.getElementById('f-name').value,
+            desc: document.getElementById('c-desc').value,
+            price: document.getElementById('c-price').value,
+            date: document.getElementById('c-date').value,
+            year: new Date(document.getElementById('c-date').value).getFullYear()
+        };
+        const resp = await fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify({action:'addCost', payload:p}) });
+        DATA = await resp.json();
+        alert("Náklad přidán.");
+    }
+
+    function generateSettlement() {
+        const name = document.getElementById('f-name').value;
+        const tenant = DATA.tenants.find(t => t.name === name);
+        const curY = new Date().getFullYear();
+        const costs = DATA.costs.filter(c => c.name && c.name.trim() === name.trim() && c.year == curY);
+        const totZ = Number(tenant.zalohy || 0) * 12;
+        const totC = costs.reduce((s, c) => s + Number(c.price || 0), 0);
+        const diff = totZ - totC;
+
+        const w = window.open("", "_blank");
+        w.document.write(`<html><body style="font-family:sans-serif;padding:40px">
+            <div style="border:1px solid #eee;padding:30px;max-width:600px;margin:auto">
+                <h2 style="color:#6366f1">ROČNÍ VYÚČTOVÁNÍ ${curY}</h2>
+                <p><b>Dodavatel:</b> AMK TRABANT PLZEŇ z.s., IČ: 45333637</p>
+                <hr><p><b>Odběratel:</b> ${tenant.name}<br>${tenant.street||''}, ${tenant.city||''}</p>
+                <table style="width:100%;margin-top:20px">
+                    <tr><td>Uhrazené zálohy:</td><td style="text-align:right">${totZ} Kč</td></tr>
+                    <tr><td>Náklady a služby:</td><td style="text-align:right">-${totC} Kč</td></tr>
+                    <tr style="font-size:20px;font-weight:bold"><td>VÝSLEDEK:</td><td style="text-align:right;color:${diff>=0?'green':'red'}">${diff>=0?'PŘEPLATEK':'NEDOPLATEK'} ${Math.abs(diff)} Kč</td></tr>
+                </table>
+            </div></body></html>`);
     }
 
     function closeModal() { document.getElementById('modal').style.display='none'; }
-    
     function renderTenantView() {
         const t = DATA.tenants.find(x => x.email === USER.email);
-        document.getElementById('tWelcome').innerText = "Vítejte, " + t.name;
-        document.getElementById('tDetails').innerHTML = `<div class="glass-card"><label>Nájemné</label><h3>${t.najem} Kč</h3></div><div class="glass-card"><label>Zálohy</label><h3>${t.zalohy} Kč</h3></div>`;
+        document.getElementById('tWelcome').innerText = "Vítejte, " + (t?t.name:'nájemníku');
+        if(t) document.getElementById('tDetails').innerHTML = `<div class="glass-card"><label>Nájem</label><h3>${t.najem} Kč</h3></div><div class="glass-card"><label>Zálohy</label><h3>${t.zalohy} Kč</h3></div>`;
     }
 </script>
 </body>
