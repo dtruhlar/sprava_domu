@@ -185,6 +185,38 @@
         document.getElementById('modal').style.display = 'block'; 
     }
     function closeModal() { document.getElementById('modal').style.display = 'none'; }
+    
+    async function handleLogin() {
+    const email = document.getElementById('logEmail').value;
+    const pass = document.getElementById('logPass').value;
+    
+    if(!email || !pass) { alert("Vyplňte údaje"); return; }
+
+    const resp = await fetch(SCRIPT_URL, {
+        method: 'POST',
+        // Posíláme čisté heslo, Google Script ho zahashuje
+        body: JSON.stringify({ action: 'login', email: email, password: pass })
+    });
+    
+    const res = await resp.json();
+    
+    if(res.success) {
+        USER = res;
+        DATA = res.allData;
+        document.getElementById('loginSection').style.display = 'none';
+        document.getElementById('app').style.display = 'block';
+        
+        if(res.role === 'admin') {
+            document.querySelectorAll('.admin-only').forEach(e => e.style.display = 'block');
+            renderAdminTable();
+        } else {
+            document.getElementById('tenantContent').style.display = 'block';
+            renderTenantView();
+        }
+    } else {
+        alert("Neplatný email nebo heslo.");
+    }
+}
 </script>
 </body>
 </html>
