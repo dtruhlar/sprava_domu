@@ -33,7 +33,7 @@
         .modal-content { background: white; padding: 30px; border-radius: 20px; width: 600px; max-height: 90vh; overflow-y: auto; }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
         label { display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-sub); margin-bottom: 5px; }
-        input { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; }
+        input { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; font-family: inherit; }
         #loader { position: fixed; top: 0; left: 0; width: 100%; height: 4px; background: #e2e8f0; z-index: 2000; display: none; }
         #loader-fill { width: 30%; height: 100%; background: var(--primary); animation: loading 1.5s infinite linear; }
         @keyframes loading { from { margin-left: -30%; } to { margin-left: 100%; } }
@@ -90,8 +90,8 @@
         <hr style="margin: 20px 0; border: 0; border-top: 1px solid var(--border);">
         <h3 style="margin-bottom: 15px;">Vodoměr (Odečet)</h3>
         <div class="grid">
-            <div><label>Počáteční stav</label><input type="number" id="f-mStart" readonly style="background: #f8fafc;"></div>
-            <div><label>Nový koncový stav</label><input type="number" id="f-mEnd"></div>
+            <div><label>Počáteční stav</label><input type="number" id="f-mStart"></div>
+            <div><label>Nový koncový stav</label><input type="number" id="f-mEnd" placeholder="Zadejte aktuální stav"></div>
         </div>
         <div style="display: flex; gap: 10px; margin-top: 25px;">
             <button class="btn btn-p" style="flex: 2" onclick="handleSave()">Uložit vše</button>
@@ -112,18 +112,9 @@
         try {
             const resp = await fetch(SCRIPT_URL);
             const data = await resp.json();
-            
-            // Normalizace klíčů (vše na malá písmena)
-            STATE.tenants = data.tenants.map(t => {
-                let n = {}; for(let k in t) n[k.toLowerCase()] = t[k]; return n;
-            });
-            STATE.payments = data.payments.map(p => {
-                let n = {}; for(let k in p) n[k.toLowerCase()] = p[k]; return n;
-            });
-            STATE.meters = data.meters.map(m => {
-                let n = {}; for(let k in m) n[k.toLowerCase()] = m[k]; return n;
-            });
-
+            STATE.tenants = data.tenants.map(t => { let n = {}; for(let k in t) n[k.toLowerCase()] = t[k]; return n; });
+            STATE.payments = data.payments.map(p => { let n = {}; for(let k in p) n[k.toLowerCase()] = p[k]; return n; });
+            STATE.meters = data.meters.map(m => { let n = {}; for(let k in m) n[k.toLowerCase()] = m[k]; return n; });
             renderTable();
         } catch (e) { alert("Chyba načítání."); }
         toggleLoader(false);
@@ -136,10 +127,7 @@
         const curY = now.getFullYear();
 
         tbody.innerHTML = STATE.tenants.map(t => {
-            const isPaid = STATE.payments.some(p => 
-                String(p.name).trim() === String(t.name).trim() && 
-                Number(p.month) === curM && Number(p.year) === curY && p.status === "OK"
-            );
+            const isPaid = STATE.payments.some(p => String(p.name).trim() === String(t.name).trim() && Number(p.month) === curM && Number(p.year) === curY && p.status === "OK");
             const d = t.platnostdo ? new Date(t.platnostdo).toLocaleDateString('cs-CZ') : '-';
             return `<tr>
                 <td><b>${t.name}</b></td>
@@ -155,7 +143,7 @@
     function openEdit(idx) {
         const t = STATE.tenants.find(x => Number(x.rowidx) === Number(idx));
         if(!t) return;
-        const m = STATE.meters.filter(x => x.name === t.name).pop();
+        const m = STATE.meters.filter(x => String(x.name).trim() === String(t.name).trim()).pop();
 
         document.getElementById('f-rowidx').value = t.rowidx;
         document.getElementById('f-name').value = t.name || "";
@@ -166,15 +154,26 @@
         document.getElementById('f-telefon').value = t.telefon || "";
         document.getElementById('f-pocetosob').value = t.pocetosob || 1;
         document.getElementById('f-platnostdo').value = t.platnostdo ? new Date(t.platnostdo).toISOString().split('T')[0] : "";
-        document.getElementById('f-mStart').value = m ? m.end : 0;
         
+        const startInput = document.getElementById('f-mStart');
+        if (m) {
+            startInput.value = m.end;
+            startInput.readOnly = true;
+            startInput.style.background = "#f8fafc";
+        } else {
+            startInput.value = 0;
+            startInput.readOnly = false;
+            startInput.style.background = "#ffffff";
+        }
+        
+        document.getElementById('f-mEnd').value = "";
         document.getElementById('delBtn').style.display = 'block';
         document.getElementById('modal').style.display = 'flex';
     }
 
     function openModal() {
         document.getElementById('f-rowidx').value = "";
-        document.querySelectorAll('input').forEach(i => i.value = "");
+        document.querySelectorAll('input').forEach(i => { i.value = ""; i.readOnly = false; i.style.background="#fff"; });
         document.getElementById('delBtn').style.display = 'none';
         document.getElementById('modal').style.display = 'flex';
     }
@@ -193,6 +192,7 @@
             telefon: document.getElementById('f-telefon').value,
             pocetosob: document.getElementById('f-pocetosob').value,
             platnostdo: document.getElementById('f-platnostdo').value,
+            meterStart: document.getElementById('f-mStart').value,
             meterEnd: document.getElementById('f-mEnd').value
         };
         await fetch(SCRIPT_URL, { method:'POST', mode:'no-cors', body: JSON.stringify({action:'saveTenant', payload:p}) });
