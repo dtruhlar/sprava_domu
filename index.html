@@ -57,26 +57,26 @@
     <div class="container" style="max-width: 400px; margin-top: 80px;">
         <div id="box-login">
             <h2 style="text-align: center;">Přihlášení</h2>
-            <label>E-mail</label><input type="email" id="email">
-            <label>Heslo</label><input type="password" id="pass">
+            <label>E-mail</label><input type="email" id="email" onkeypress="if(event.key === 'Enter') handleLogin()">
+            <label>Heslo</label><input type="password" id="pass" onkeypress="if(event.key === 'Enter') handleLogin()">
             <button class="btn btn-blue" style="width:100%" onclick="handleLogin()">Vstoupit do systému</button>
             <a class="link" onclick="showBox('forgot')">Zapomněli jste heslo? Klikněte zde.</a>
         </div>
         <div id="box-register" class="hidden">
             <h2 style="text-align: center;">Nové heslo</h2>
-            <label>Nové heslo</label><input type="password" id="reg-p1">
-            <label>Heslo znovu</label><input type="password" id="reg-p2">
+            <label>Nové heslo</label><input type="password" id="reg-p1" onkeypress="if(event.key === 'Enter') savePassword()">
+            <label>Heslo znovu</label><input type="password" id="reg-p2" onkeypress="if(event.key === 'Enter') savePassword()">
             <button class="btn btn-green" style="width:100%" onclick="savePassword()">Uložit a přihlásit se</button>
         </div>
         <div id="box-forgot" class="hidden">
             <h2 style="text-align: center;">Obnova hesla</h2>
-            <label>E-mail</label><input type="email" id="forgot-email">
+            <label>E-mail</label><input type="email" id="forgot-email" onkeypress="if(event.key === 'Enter') sendResetCode()">
             <button class="btn btn-blue" style="width:100%" onclick="sendResetCode()">Odeslat ověřovací kód</button>
             <a class="link" onclick="showBox('login')">Zpět na přihlášení</a>
         </div>
         <div id="box-verify" class="hidden">
             <h2 style="text-align: center;">Ověření e-mailu</h2>
-            <label>Kód z e-mailu</label><input type="text" id="verify-code">
+            <label>Kód z e-mailu</label><input type="text" id="verify-code" onkeypress="if(event.key === 'Enter') verifyCode()">
             <button class="btn btn-green" style="width:100%" onclick="verifyCode()">Ověřit kód</button>
         </div>
     </div>
@@ -305,26 +305,38 @@
     }
 
     async function handleLogin(savedE, savedP) {
+        const btn = document.querySelector('#box-login button');
+        if(btn) btn.innerText = "Přihlašuji...";
+        
         CUR_EMAIL = savedE || document.getElementById('email').value.trim(); 
         const pass = savedP || document.getElementById('pass').value;
-        if(!CUR_EMAIL || !pass) return alert("Zadejte email a heslo.");
+        if(!CUR_EMAIL || !pass) {
+            if(btn) btn.innerText = "Vstoupit do systému";
+            return alert("Zadejte email a heslo.");
+        }
         
-        const resp = await fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify({action:'login', email:CUR_EMAIL, password:pass}) });
-        const res = await resp.json();
-        
-        if(res.success) { 
-            if(res.mode === 'register') { 
-                document.getElementById('loginSection').classList.remove('hidden');
-                showBox('register'); 
+        try {
+            const resp = await fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify({action:'login', email:CUR_EMAIL, password:pass}) });
+            const res = await resp.json();
+            
+            if(res.success) { 
+                if(res.mode === 'register') { 
+                    document.getElementById('loginSection').classList.remove('hidden');
+                    showBox('register'); 
+                } else { 
+                    localStorage.setItem('amk_em', CUR_EMAIL);
+                    localStorage.setItem('amk_pw', pass);
+                    USER = res; DATA = res.allData; startApp(); 
+                } 
             } else { 
-                localStorage.setItem('amk_em', CUR_EMAIL);
-                localStorage.setItem('amk_pw', pass);
-                USER = res; DATA = res.allData; startApp(); 
-            } 
-        } else { 
-            document.getElementById('loginSection').classList.remove('hidden');
-            if(savedE) { localStorage.removeItem('amk_em'); localStorage.removeItem('amk_pw'); }
-            else { alert(res.msg); }
+                document.getElementById('loginSection').classList.remove('hidden');
+                if(savedE) { localStorage.removeItem('amk_em'); localStorage.removeItem('amk_pw'); }
+                else { alert(res.msg); }
+                if(btn) btn.innerText = "Vstoupit do systému";
+            }
+        } catch(e) {
+            alert("Chyba spojení. Ujistěte se, že jste v App Scriptu nasadili Novou verzi.");
+            if(btn) btn.innerText = "Vstoupit do systému";
         }
     }
 
@@ -336,7 +348,7 @@
 
     async function savePassword() {
         const p1 = document.getElementById('reg-p1').value; const p2 = document.getElementById('reg-p2').value;
-        if(p1 !== p2 || p1.length < 6) return alert("Hesla se neshodují.");
+        if(p1 !== p2 || p1.length < 6) return alert("Hesla se neshodují nebo jsou krátká.");
         await fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify({action:'setPassword', email:CUR_EMAIL, password:p1}) });
         alert("Heslo nastaveno."); location.reload();
     }
@@ -362,17 +374,18 @@
 
     function renderAdminTable() {
         const curM = new Date().getMonth() + 1; const curY = new Date().getFullYear();
-        document.getElementById('tBody').innerHTML = DATA.tenants.map(t => {
+        document.getElementById('tBody').innerHTML = (DATA.tenants || []).map(t => {
             let dluzneMesice = [];
             let zalohaCislo = Number(t.zalohy || t.zaloha || t.mesicnizalohy || 0); let najemCislo = Number(t.najem || 0);
             let ocekavanoCelkem = najemCislo + zalohaCislo;
 
             for(let m = 1; m <= curM; m++) {
-                let zaplacenoVMesici = DATA.payments.filter(p => p.name && p.name.trim().toLowerCase() === t.name.trim().toLowerCase() && p.year == curY && p.month == m).reduce((sum, p) => sum + Number(p.amount || 0), 0);
+                // Bezpečné volání toLowerCase() s ošetřením prázdných hodnot
+                let zaplacenoVMesici = (DATA.payments || []).filter(p => String(p.name || "").trim().toLowerCase() === String(t.name || "").trim().toLowerCase() && p.year == curY && p.month == m).reduce((sum, p) => sum + Number(p.amount || 0), 0);
                 if(ocekavanoCelkem > 0 && zaplacenoVMesici < ocekavanoCelkem) dluzneMesice.push(mesiceNázvy[m]);
             }
             let badgesHtml = dluzneMesice.length === 0 ? `<span class="badge b-ok">✓ OK</span>` : dluzneMesice.map(m => `<span class="badge b-wait">❌ ${m}</span>`).join('');
-            return `<tr><td><strong>${t.name}</strong><br><span style="font-size:11px; color:#7f8c8d">${t.typ === 'komerce' ? 'Komerce' : 'Byt'} | ${t.email}</span></td><td>${t.unit || '-'}</td><td>${badgesHtml}</td><td><button class="btn btn-blue" onclick="openEdit(${t.rowidx})">Karta</button></td></tr>`;
+            return `<tr><td><strong>${t.name || 'Nepojmenováno'}</strong><br><span style="font-size:11px; color:#7f8c8d">${t.typ === 'komerce' ? 'Komerce' : 'Byt'} | ${t.email || 'Bez e-mailu'}</span></td><td>${t.unit || '-'}</td><td>${badgesHtml}</td><td><button class="btn btn-blue" onclick="openEdit(${t.rowidx})">Karta</button></td></tr>`;
         }).join('');
     }
 
@@ -400,7 +413,7 @@
             document.getElementById('f-zalohy').value = t.zalohy || t.zaloha || t.mesicnizalohy || 0; document.getElementById('f-pocetosob').value = t.pocetosob || t.osob || 1;
             if(t.platnostdo) document.getElementById('f-platnostdo').value = new Date(t.platnostdo).toISOString().split('T')[0];
 
-            const mHist = DATA.meters.filter(m => m.name && t.name && m.name.toString().trim().toLowerCase() === t.name.toString().trim().toLowerCase());
+            const mHist = (DATA.meters || []).filter(m => String(m.name || "").trim().toLowerCase() === String(t.name || "").trim().toLowerCase());
             const last = mHist[mHist.length-1];
             document.getElementById('meterSection').innerHTML = last ? `<div class="grid"><div><label>Minulý stav vodoměru</label><input id="f-meterStart" value="${last.koncovy}" readonly style="background:#eee"></div><div><label>Nový odečet vodoměru</label><input type="number" id="f-meterEnd"></div></div>` : `<label>Počáteční stav vodoměru</label><input type="number" id="f-meterStart">`;
         }
@@ -414,11 +427,8 @@
         let mEnd = document.getElementById('f-meterEnd')?.value || "";
         let finalStart = ""; let finalEnd = "";
 
-        if (mEnd !== "") {
-            finalStart = mStart; finalEnd = mEnd;
-        } else if (mStart !== "" && !document.getElementById('f-meterEnd')) {
-            finalStart = mStart; finalEnd = mStart;
-        }
+        if (mEnd !== "") { finalStart = mStart; finalEnd = mEnd; } 
+        else if (mStart !== "" && !document.getElementById('f-meterEnd')) { finalStart = mStart; finalEnd = mStart; }
 
         const p = { rowidx: document.getElementById('f-rowidx').value, typ: document.getElementById('f-typ').value, name: document.getElementById('f-name').value, jednatel: document.getElementById('f-jednatel').value, ico: document.getElementById('f-ico').value, dph: document.getElementById('f-dph').checked ? "Ano" : "Ne", plocha: document.getElementById('f-plocha').value, unit: document.getElementById('f-unit').value, vs: document.getElementById('f-vs').value, street: document.getElementById('f-street').value, city: document.getElementById('f-city').value, zip: document.getElementById('f-zip').value, email: document.getElementById('f-email').value, telefon: document.getElementById('f-telefon').value, najem: document.getElementById('f-najem').value, zalohy: document.getElementById('f-zalohy').value, pocetosob: document.getElementById('f-pocetosob').value, platnostdo: document.getElementById('f-platnostdo').value, meterStart: finalStart, meterEnd: finalEnd };
         const resp = await fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify({action:'saveTenant', payload:p}) });
@@ -443,8 +453,7 @@
             let c = Number(row.querySelector('.v-cena').value||0);
             let dph = Number(row.querySelector('.v-dph').value||0);
             let m = Number(row.querySelector('.v-m3').value||0);
-            sumCena += c * (1 + (dph / 100));
-            sumM3 += m; 
+            sumCena += c * (1 + (dph / 100)); sumM3 += m; 
         });
         document.getElementById('sc-voda-celkem-cena').innerText = sumCena.toFixed(2); 
         document.getElementById('sc-voda-celkem-m3').innerText = sumM3.toFixed(2);
@@ -477,7 +486,7 @@
     function populateTenantLists() {
         const lists = ['voda', 'srazky', 'odpadyCP', 'odpadyAVE', 'ele', 'uklid'];
         lists.forEach(l => {
-            document.getElementById('list-' + l).innerHTML = DATA.tenants.map(t => `<label><input type="checkbox" class="chk-${l}" value="${t.name}"> ${t.name} (${t.typ==='komerce'?'Komerce':'Byt'})</label>`).join('');
+            document.getElementById('list-' + l).innerHTML = (DATA.tenants || []).map(t => `<label><input type="checkbox" class="chk-${l}" value="${t.name}"> ${t.name} (${t.typ==='komerce'?'Komerce':'Byt'})</label>`).join('');
         });
     }
 
@@ -488,7 +497,7 @@
         document.getElementById('voda-segments').innerHTML = ""; document.getElementById('srazky-segments').innerHTML = "";
         document.getElementById('shared-year').value = year;
 
-        const minulyRok = DATA.sharedCosts.find(s => s.year == (year - 1));
+        const minulyRok = (DATA.sharedCosts || []).find(s => s.year == (year - 1));
         if(minulyRok && minulyRok.data) {
             const mSc = JSON.parse(minulyRok.data);
             if(mSc.ele) {
@@ -497,7 +506,7 @@
             }
         }
 
-        const saved = DATA.sharedCosts.find(s => s.year == year);
+        const saved = (DATA.sharedCosts || []).find(s => s.year == year);
         if(saved && saved.data) {
             const sc = JSON.parse(saved.data);
             if(sc.voda && sc.voda.segments) { sc.voda.segments.forEach(seg => addVodaRow(seg.cena, seg.m3, seg.dph || '')); } else { addVodaRow(); }
@@ -541,14 +550,14 @@
     }
 
     function calculateTenantShares(year) {
-        const saved = DATA.sharedCosts.find(s => s.year == year); if(!saved || !saved.data) return null;
+        const saved = (DATA.sharedCosts || []).find(s => s.year == year); if(!saved || !saved.data) return null;
         const sc = JSON.parse(saved.data); let shares = {};
-        DATA.tenants.forEach(t => shares[t.name] = { voda:0, srazky:0, ele:0, odpady:0, uklid:0, celkem:0 });
+        (DATA.tenants || []).forEach(t => shares[t.name] = { voda:0, srazky:0, ele:0, odpady:0, uklid:0, celkem:0 });
 
         if(sc.voda) {
             const prumerVoda = sc.voda.m3 > 0 ? (sc.voda.cena / sc.voda.m3) : 0;
             sc.voda.tenants.forEach(n => {
-                const m = DATA.meters.filter(x => x.name == n && (x.year == year || x.rok == year));
+                const m = (DATA.meters || []).filter(x => x.name == n && (x.year == year || x.rok == year));
                 const spotreba = m.reduce((s, x) => s + Number(x.spotreba || x.rozdil || 0), 0);
                 shares[n].voda = Math.round(spotreba * prumerVoda);
             });
@@ -614,21 +623,18 @@
         if(!rok) return;
 
         const t = DATA.tenants.find(x => x.name == name);
-        if(!t) {
-            alert("Nájemník nebyl v databázi nalezen. Ujistěte se, že je karta uložena.");
-            return;
-        }
+        if(!t) { alert("Nájemník nebyl v databázi nalezen. Ujistěte se, že je karta uložena."); return; }
 
         const tZaloha = Number(t.zalohy || t.zaloha || t.mesicnizalohy || 0); const tNajem = Number(t.najem || 0);
         
-        const platbyRoku = DATA.payments.filter(p => p.name && p.name.trim().toLowerCase() === name.toLowerCase() && p.year == rok);
+        const platbyRoku = (DATA.payments || []).filter(p => String(p.name || "").trim().toLowerCase() === String(name).toLowerCase() && p.year == rok);
         const celkemZaplaceno = platbyRoku.reduce((sum, p) => sum + Number(p.amount || 0), 0);
         let pocetMesicu = 0; if((tZaloha + tNajem) > 0) { pocetMesicu = Math.floor(celkemZaplaceno / (tZaloha + tNajem)); }
         
         const celkemVybranoNaZalohach = pocetMesicu * tZaloha;
         const celkemVybranoNaNajmu = pocetMesicu * tNajem;
 
-        const costs = DATA.costs.filter(c => c.name == name && c.year == rok);
+        const costs = (DATA.costs || []).filter(c => c.name == name && c.year == rok);
         const indNaklady = costs.reduce((s, c) => s + Number(c.price || c.cena || c.castka || 0), 0);
         let nakladyHtml = costs.map(c => `<tr><td style="padding:8px; border-bottom:1px solid #ddd;">${c.popis || c.description || c.desc || c.naklad || 'Mimořádný náklad'}</td><td style="text-align:right; padding:8px; border-bottom:1px solid #ddd;">${c.price || c.cena || c.castka || 0} Kč</td></tr>`).join('');
 
@@ -713,7 +719,6 @@
             </div>
 
             <script>
-                // Odeslání E-mailem
                 async function odeslatEmailem() {
                     const email = "${t.email}";
                     if (!email || email === "undefined") { alert("Tento nájemník nemá vyplněný e-mail!"); return; }
@@ -732,7 +737,6 @@
                     } catch(e) { alert("Chyba připojení."); btn.disabled = false; }
                 }
 
-                // Vystavení do profilu nájemníka
                 async function ulozitDoPortalu() {
                     const btn = document.getElementById('btnSave');
                     btn.innerText = "Ukládám..."; btn.disabled = true;
@@ -763,11 +767,12 @@
 
     // --- LOGIKA PRO PROFIL NÁJEMNÍKA ---
     function renderTenantView() { 
-        const t = DATA.tenants.find(x => x.email.toLowerCase() === USER.email.toLowerCase()); 
-        document.getElementById('appHeader').innerText = "Vítejte, " + (t ? t.name : "Nájemníku"); 
+        // 100% BEZPEČNÉ VYKRESLENÍ: I když bude v DB chybět nějaký e-mail nebo jméno, nic nespadne.
+        const t = (DATA.tenants || []).find(x => String(x.email || "").toLowerCase() === String(USER.email || "").toLowerCase()); 
+        document.getElementById('appHeader').innerText = "Vítejte, " + (t && t.name ? t.name : "Nájemníku"); 
         
         if (!t) {
-            document.getElementById('tView').innerHTML = "<p>Vaše karta nebyla nalezena. Kontaktujte správce.</p>";
+            document.getElementById('tView').innerHTML = "<div class='box-section'><h3>Účet nenalezen</h3><p>Vaše karta nájemníka se s tímto e-mailem neshoduje. Kontaktujte správce.</p></div>";
             return;
         }
 
@@ -803,12 +808,10 @@
         `;
         document.getElementById('tView').innerHTML = html; 
 
-        // Načteme pouze ta vyúčtování, která administrátor uložil přes tlačítko "Uložit do portálu"
-        const mySettlements = (DATA.settlements || []).filter(s => s.name && s.name.trim().toLowerCase() === t.name.trim().toLowerCase());
+        const mySettlements = (DATA.settlements || []).filter(s => String(s.name || "").trim().toLowerCase() === String(t.name || "").trim().toLowerCase());
 
         let yearsHtml = "";
         if (mySettlements.length > 0) {
-            // Seřadíme od nejnovějšího
             mySettlements.sort((a,b) => b.year - a.year).forEach(s => {
                 yearsHtml += `<button class="btn btn-gray" style="margin-right:10px; margin-bottom:10px;" onclick="viewSavedSettlement(${s.rowidx})">Rok ${s.year} (vystaveno ${s.date || ''})</button>`;
             });
@@ -847,9 +850,8 @@
         btn.innerText = "Odeslat zprávu"; btn.disabled = false;
     }
 
-    // Otevře přesnou kopii vyúčtování uloženou v databázi
     function viewSavedSettlement(rowidx) {
-        const s = DATA.settlements.find(x => x.rowidx == rowidx);
+        const s = (DATA.settlements || []).find(x => x.rowidx == rowidx);
         if(s && s.html) {
             document.getElementById('tenant-settlement-detail').innerHTML = s.html;
         }
