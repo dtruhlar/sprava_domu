@@ -397,4 +397,21 @@
         const vysledek = celkemVybranoNaZalohach - celkNaklady;
 
         const w = window.open("", "_blank");
-        w.document.write(`<html>
+        w.document.write(`<html><body style="font-family:Arial; padding:40px;">
+            <div style="max-width:800px; margin:auto; border:1px solid #ccc; padding:40px;">
+                <h1 style="text-align:center;">ROČNÍ ZÚČTOVÁNÍ ${rok}</h1>
+                <p><strong>Nájemce:</strong> ${t.name}</p>
+                <hr>
+                <p>Vybráno na zálohách na služby: <strong>${celkemVybranoNaZalohach} Kč</strong></p>
+                <h3>Rozpis nákladů</h3>
+                <table style="width:100%; border-collapse:collapse;">
+                    ${nakladyHtml}
+                    <tr><td style="padding:10px; font-weight:bold; border:1px solid #ddd;">Náklady celkem</td><td style="text-align:right; padding:10px; font-weight:bold; color:red; border:1px solid #ddd;">- ${celkNaklady} Kč</td></tr>
+                </table>
+                <h3 style="margin-top:30px;">VÝSLEDEK ZÚČTOVÁNÍ: <span style="color:${vysledek>=0?'green':'red'}">${vysledek>=0?'PŘEPLATEK':'NEDOPLATEK'} ${Math.abs(vysledek)} Kč</span></h3>
+            </div>
+        </body></html>`);
+    }
+</script>
+</body>
+</html>
