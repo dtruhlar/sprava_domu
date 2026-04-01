@@ -103,8 +103,8 @@
                         <button class="btn btn-gray btn-small" onclick="addVodaRow()">+ Přidat úsek faktury</button>
                         
                         <div style="background:#eef7ff; padding:8px; border-radius:4px; font-weight:bold; margin-bottom:10px; margin-top: 10px;">
-                            Celkem: <span id="sc-voda-celkem-cena">0</span> Kč / <span id="sc-voda-celkem-m3">0</span> m³<br>
-                            Průměrná cena: <span id="sc-voda-prumer" style="color:#2980b9; font-size: 1.1em;">0</span> Kč/m³
+                            Celkem s DPH: <span id="sc-voda-celkem-cena">0</span> Kč / <span id="sc-voda-celkem-m3">0</span> m³<br>
+                            Průměrná cena s DPH: <span id="sc-voda-prumer" style="color:#2980b9; font-size: 1.1em;">0</span> Kč/m³
                         </div>
                         <label>Rozúčtovat mezi (dle vodoměrů):</label>
                         <div class="tenant-list" id="list-voda"></div>
@@ -143,14 +143,21 @@
                         <div class="box-section">
                             <h3 style="color:#f39c12">4. Společná elektřina</h3>
                             <div class="grid" style="background:#fff; padding:10px; border-radius:4px; margin-bottom:10px; border:1px solid #ddd;">
-                                <div><label>HLAVNÍ - Původní stav</label><input type="number" id="sc-ele-hlavni-start"></div>
-                                <div><label>HLAVNÍ - Nový stav</label><input type="number" id="sc-ele-hlavni-end"></div>
+                                <div><label>HLAVNÍ - Původní stav</label><input type="number" id="sc-ele-hlavni-start" oninput="calcEleSazba()"></div>
+                                <div><label>HLAVNÍ - Nový stav</label><input type="number" id="sc-ele-hlavni-end" oninput="calcEleSazba()"></div>
                             </div>
                             <div class="grid" style="background:#fff; padding:10px; border-radius:4px; margin-bottom:10px; border:1px solid #ddd;">
                                 <div><label>ZASEDAČKA - Původní stav</label><input type="number" id="sc-ele-podruzny-start"></div>
                                 <div><label>ZASEDAČKA - Nový stav</label><input type="number" id="sc-ele-podruzny-end"></div>
                             </div>
-                            <label>Cena za 1 kWh (Kč)</label><input type="number" id="sc-ele-sazba">
+                            <label>Celková fakturovaná cena (Kč)</label>
+                            <input type="number" id="sc-ele-celkem-cena" oninput="calcEleSazba()">
+                            
+                            <div style="background:#eef7ff; padding:8px; border-radius:4px; font-weight:bold; margin-bottom:10px;">
+                                Vypočtená sazba: <span id="sc-ele-sazba-display" style="color:#f39c12; font-size: 1.1em;">0</span> Kč/kWh
+                            </div>
+                            <input type="hidden" id="sc-ele-sazba">
+                            
                             <label>Rozúčtovat rovným dílem mezi:</label>
                             <div class="tenant-list" id="list-ele"></div>
                         </div>
@@ -258,7 +265,7 @@
 </div>
 
 <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzfm7aHYnfodOGT1BRlmtQexj67oMFPNCfgQlOn1WLyJbivwyrdghxKJlrgA8_pni6Y/exec"; // DOPLŇ URL!!!
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzfm7aHYnfodOGT1BRlmtQexj67oMFPNCfgQlOn1WLyJbivwyrdghxKJlrgA8_pni6Y/exec"; // DOPLŇ URL
     let DATA = null; let USER = null; let CUR_EMAIL = "";
     const mesiceNázvy = ["", "Leden", "Únor", "Březen", "Duben", "Květen", "Červen", "Červenec", "Srpen", "Září", "Říjen", "Listopad", "Prosinec"];
 
@@ -355,15 +362,15 @@
     async function handleSave() {
         const btn = document.getElementById('saveBtn'); btn.innerText = "Ukládám...";
 
-        // LOGIKA PRO ZÁPIS VODOMĚRU - Zabrání zahození prvního vstupu
+        // LOGIKA PRO ZÁPIS VODOMĚRU
         let mStart = document.getElementById('f-meterStart')?.value || "";
         let mEnd = document.getElementById('f-meterEnd')?.value || "";
         let finalStart = ""; let finalEnd = "";
 
         if (mEnd !== "") {
-            finalStart = mStart; finalEnd = mEnd; // Klasický nový odečet
+            finalStart = mStart; finalEnd = mEnd;
         } else if (mStart !== "" && !document.getElementById('f-meterEnd')) {
-            finalStart = mStart; finalEnd = mStart; // Úplně první založení vodoměru
+            finalStart = mStart; finalEnd = mStart;
         }
 
         const p = { rowidx: document.getElementById('f-rowidx').value, typ: document.getElementById('f-typ').value, name: document.getElementById('f-name').value, jednatel: document.getElementById('f-jednatel').value, ico: document.getElementById('f-ico').value, dph: document.getElementById('f-dph').checked ? "Ano" : "Ne", plocha: document.getElementById('f-plocha').value, unit: document.getElementById('f-unit').value, vs: document.getElementById('f-vs').value, street: document.getElementById('f-street').value, city: document.getElementById('f-city').value, zip: document.getElementById('f-zip').value, email: document.getElementById('f-email').value, telefon: document.getElementById('f-telefon').value, najem: document.getElementById('f-najem').value, zalohy: document.getElementById('f-zalohy').value, pocetosob: document.getElementById('f-pocetosob').value, platnostdo: document.getElementById('f-platnostdo').value, meterStart: finalStart, meterEnd: finalEnd };
@@ -379,17 +386,24 @@
     }
 
     // --- DYNAMICKÉ ÚSEKY VODY A SRÁŽEK ---
-    function addVodaRow(cena='', m3='') {
-        const div = document.createElement('div'); div.className = 'grid voda-row'; div.style.marginBottom = '5px';
-        div.innerHTML = `<div><input type="number" placeholder="Cena úseku (Kč)" class="v-cena" value="${cena}" oninput="calcVoda()" style="margin-bottom:0"></div><div><input type="number" placeholder="Množství úseku (m³)" class="v-m3" value="${m3}" oninput="calcVoda()" style="margin-bottom:0"></div>`;
+    function addVodaRow(cena='', m3='', dph='') {
+        const div = document.createElement('div'); div.className = 'grid-3 voda-row'; div.style.marginBottom = '5px';
+        div.innerHTML = `<div><input type="number" placeholder="Cena bez DPH (Kč)" class="v-cena" value="${cena}" oninput="calcVoda()" style="margin-bottom:0"></div><div><input type="number" placeholder="DPH (%)" class="v-dph" value="${dph}" oninput="calcVoda()" style="margin-bottom:0"></div><div><input type="number" placeholder="Množství (m³)" class="v-m3" value="${m3}" oninput="calcVoda()" style="margin-bottom:0"></div>`;
         document.getElementById('voda-segments').appendChild(div);
     }
     function calcVoda() {
         let sumCena = 0, sumM3 = 0;
-        document.querySelectorAll('.voda-row').forEach(row => { sumCena += Number(row.querySelector('.v-cena').value||0); sumM3 += Number(row.querySelector('.v-m3').value||0); });
-        document.getElementById('sc-voda-celkem-cena').innerText = sumCena; document.getElementById('sc-voda-celkem-m3').innerText = sumM3;
+        document.querySelectorAll('.voda-row').forEach(row => { 
+            let c = Number(row.querySelector('.v-cena').value||0);
+            let dph = Number(row.querySelector('.v-dph').value||0);
+            let m = Number(row.querySelector('.v-m3').value||0);
+            sumCena += c * (1 + (dph / 100));
+            sumM3 += m; 
+        });
+        document.getElementById('sc-voda-celkem-cena').innerText = sumCena.toFixed(2); 
+        document.getElementById('sc-voda-celkem-m3').innerText = sumM3.toFixed(2);
         document.getElementById('sc-voda-prumer').innerText = sumM3 > 0 ? (sumCena/sumM3).toFixed(2) : 0;
-        return { cena: sumCena, m3: sumM3, segments: Array.from(document.querySelectorAll('.voda-row')).map(r => ({cena: r.querySelector('.v-cena').value, m3: r.querySelector('.v-m3').value})) };
+        return { cena: sumCena, m3: sumM3, segments: Array.from(document.querySelectorAll('.voda-row')).map(r => ({cena: r.querySelector('.v-cena').value, dph: r.querySelector('.v-dph').value, m3: r.querySelector('.v-m3').value})) };
     }
 
     function addSrazkyRow(cena='', m3='') {
@@ -400,8 +414,19 @@
     function calcSrazky() {
         let sumCena = 0, sumM3 = 0;
         document.querySelectorAll('.srazky-row').forEach(row => { sumCena += Number(row.querySelector('.s-cena').value||0); sumM3 += Number(row.querySelector('.s-m3').value||0); });
-        document.getElementById('sc-srazky-celkem-cena').innerText = sumCena;
+        document.getElementById('sc-srazky-celkem-cena').innerText = sumCena.toFixed(2);
         return { cena: sumCena, m3: sumM3, segments: Array.from(document.querySelectorAll('.srazky-row')).map(r => ({cena: r.querySelector('.s-cena').value, m3: r.querySelector('.s-m3').value})) };
+    }
+
+    // --- VÝPOČET SAZBY ELEKTŘINY ---
+    function calcEleSazba() {
+        let start = Number(document.getElementById('sc-ele-hlavni-start').value||0);
+        let end = Number(document.getElementById('sc-ele-hlavni-end').value||0);
+        let cena = Number(document.getElementById('sc-ele-celkem-cena').value||0);
+        let spotreba = end - start;
+        let sazba = spotreba > 0 ? (cena / spotreba) : 0;
+        document.getElementById('sc-ele-sazba-display').innerText = sazba.toFixed(2);
+        document.getElementById('sc-ele-sazba').value = sazba;
     }
 
     // --- SPOLEČNÉ NÁKLADY ---
@@ -431,13 +456,15 @@
         const saved = DATA.sharedCosts.find(s => s.year == year);
         if(saved && saved.data) {
             const sc = JSON.parse(saved.data);
-            if(sc.voda && sc.voda.segments) { sc.voda.segments.forEach(seg => addVodaRow(seg.cena, seg.m3)); } else { addVodaRow(); }
+            if(sc.voda && sc.voda.segments) { sc.voda.segments.forEach(seg => addVodaRow(seg.cena, seg.m3, seg.dph || '')); } else { addVodaRow(); }
             if(sc.srazky && sc.srazky.segments) { sc.srazky.segments.forEach(seg => addSrazkyRow(seg.cena, seg.m3)); } else { addSrazkyRow(); }
             
             if(sc.ele) {
                 document.getElementById('sc-ele-hlavni-start').value = sc.ele.hlavniStart || ""; document.getElementById('sc-ele-hlavni-end').value = sc.ele.hlavniEnd || "";
                 document.getElementById('sc-ele-podruzny-start').value = sc.ele.podruznyStart || ""; document.getElementById('sc-ele-podruzny-end').value = sc.ele.podruznyEnd || "";
+                document.getElementById('sc-ele-celkem-cena').value = sc.ele.cenaCelkem || "";
                 document.getElementById('sc-ele-sazba').value = sc.ele.sazba || "";
+                calcEleSazba();
             }
             if(sc.odpadyCP) document.getElementById('sc-odpadyCP-cena').value = sc.odpadyCP.cena || ""; 
             if(sc.odpadyAVE) document.getElementById('sc-odpadyAVE-cena').value = sc.odpadyAVE.cena || "";
@@ -460,7 +487,7 @@
         const p = {
             voda: { ...calcVoda(), tenants: Array.from(document.querySelectorAll('.chk-voda:checked')).map(c => c.value) },
             srazky: { ...calcSrazky(), tenants: Array.from(document.querySelectorAll('.chk-srazky:checked')).map(c => c.value) },
-            ele: { hlavniStart: document.getElementById('sc-ele-hlavni-start').value, hlavniEnd: document.getElementById('sc-ele-hlavni-end').value, podruznyStart: document.getElementById('sc-ele-podruzny-start').value, podruznyEnd: document.getElementById('sc-ele-podruzny-end').value, sazba: document.getElementById('sc-ele-sazba').value, tenants: Array.from(document.querySelectorAll('.chk-ele:checked')).map(c => c.value) },
+            ele: { hlavniStart: document.getElementById('sc-ele-hlavni-start').value, hlavniEnd: document.getElementById('sc-ele-hlavni-end').value, podruznyStart: document.getElementById('sc-ele-podruzny-start').value, podruznyEnd: document.getElementById('sc-ele-podruzny-end').value, cenaCelkem: document.getElementById('sc-ele-celkem-cena').value, sazba: document.getElementById('sc-ele-sazba').value, tenants: Array.from(document.querySelectorAll('.chk-ele:checked')).map(c => c.value) },
             odpadyCP: { cena: document.getElementById('sc-odpadyCP-cena').value, tenants: Array.from(document.querySelectorAll('.chk-odpadyCP:checked')).map(c => c.value) },
             odpadyAVE: { cena: document.getElementById('sc-odpadyAVE-cena').value, tenants: Array.from(document.querySelectorAll('.chk-odpadyAVE:checked')).map(c => c.value) },
             uklid: { cena: document.getElementById('sc-uklid-cena').value, tenants: Array.from(document.querySelectorAll('.chk-uklid:checked')).map(c => c.value) }
@@ -474,7 +501,6 @@
         const sc = JSON.parse(saved.data); let shares = {};
         DATA.tenants.forEach(t => shares[t.name] = { voda:0, srazky:0, ele:0, odpady:0, uklid:0, celkem:0 });
 
-        // VODA - Agnostické čtení sloupců z tabulky (podporuje 'rok/year' i 'rozdil/spotreba')
         if(sc.voda) {
             const prumerVoda = sc.voda.m3 > 0 ? (sc.voda.cena / sc.voda.m3) : 0;
             sc.voda.tenants.forEach(n => {
@@ -553,7 +579,6 @@
         const celkemVybranoNaZalohach = pocetMesicu * tZaloha;
         const celkemVybranoNaNajmu = pocetMesicu * tNajem;
 
-        // Oprava "undefined": hledá všechny možné varianty názvů sloupců z Google Tabulky
         const costs = DATA.costs.filter(c => c.name == name && c.year == rok);
         const indNaklady = costs.reduce((s, c) => s + Number(c.price || c.cena || c.castka || 0), 0);
         let nakladyHtml = costs.map(c => `<tr><td style="padding:8px; border:1px solid #ddd;">${c.popis || c.description || c.desc || c.naklad || 'Mimořádný náklad'}</td><td style="text-align:right; padding:8px; border:1px solid #ddd;">${c.price || c.cena || c.castka || 0} Kč</td></tr>`).join('');
