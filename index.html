@@ -73,7 +73,7 @@
     <div class="container">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
             <h1 id="appHeader" style="margin:0;">Administrace</h1>
-            <button class="btn btn-red" onclick="location.reload()">Odhlásit se</button>
+            <button class="btn btn-red" onclick="logout()">Odhlásit se</button>
         </div>
 
         <div id="adminContent" class="hidden">
@@ -269,6 +269,15 @@
     let DATA = null; let USER = null; let CUR_EMAIL = "";
     const mesiceNázvy = ["", "Leden", "Únor", "Březen", "Duben", "Květen", "Červen", "Červenec", "Srpen", "Září", "Říjen", "Listopad", "Prosinec"];
 
+    window.onload = function() {
+        const savedE = localStorage.getItem('amk_em');
+        const savedP = localStorage.getItem('amk_pw');
+        if(savedE && savedP) {
+            document.getElementById('loginSection').classList.add('hidden');
+            handleLogin(savedE, savedP);
+        }
+    };
+
     function showBox(id) { document.querySelectorAll('#loginSection .container > div').forEach(d => d.classList.add('hidden')); document.getElementById('box-' + id).classList.remove('hidden'); }
     
     function switchTab(tabId) {
@@ -278,12 +287,34 @@
         if(tabId === 'shared') { document.getElementById('shared-year').value = new Date().getFullYear(); populateTenantLists(); loadSharedCosts(); }
     }
 
-    async function handleLogin() {
-        CUR_EMAIL = document.getElementById('email').value.trim(); const pass = document.getElementById('pass').value;
+    async function handleLogin(savedE, savedP) {
+        CUR_EMAIL = savedE || document.getElementById('email').value.trim(); 
+        const pass = savedP || document.getElementById('pass').value;
         if(!CUR_EMAIL || !pass) return alert("Zadejte email a heslo.");
+        
         const resp = await fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify({action:'login', email:CUR_EMAIL, password:pass}) });
         const res = await resp.json();
-        if(res.success) { if(res.mode === 'register') showBox('register'); else { USER = res; DATA = res.allData; startApp(); } } else { alert(res.msg); }
+        
+        if(res.success) { 
+            if(res.mode === 'register') { 
+                document.getElementById('loginSection').classList.remove('hidden');
+                showBox('register'); 
+            } else { 
+                localStorage.setItem('amk_em', CUR_EMAIL);
+                localStorage.setItem('amk_pw', pass);
+                USER = res; DATA = res.allData; startApp(); 
+            } 
+        } else { 
+            document.getElementById('loginSection').classList.remove('hidden');
+            if(savedE) { localStorage.removeItem('amk_em'); localStorage.removeItem('amk_pw'); }
+            else { alert(res.msg); }
+        }
+    }
+
+    function logout() {
+        localStorage.removeItem('amk_em');
+        localStorage.removeItem('amk_pw');
+        location.reload();
     }
 
     async function savePassword() {
