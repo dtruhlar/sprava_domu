@@ -3,27 +3,27 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Najemnik Uslavksa</title>
+    <title>RealtyFlow Pro</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         :root { --primary: #2563eb; --bg: #f8fafc; --card: #ffffff; --border: #e2e8f0; --text: #1e293b; }
-        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); padding: 20px; }
-        .container { max-width: 1000px; margin: auto; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); padding: 20px; font-size: 14px; }
+        .container { max-width: 1100px; margin: auto; }
         .card { background: var(--card); padding: 25px; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         th, td { padding: 12px; border-bottom: 1px solid var(--border); text-align: left; }
-        .badge { padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }
-        .b-success { background: #dcfce7; color: #166534; }
-        .b-unpaid { background: #fee2e2; color: #991b1b; }
-        .btn { padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; border: 1px solid var(--border); }
+        .btn { padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; border: 1px solid var(--border); transition: 0.2s; }
         .btn-p { background: var(--primary); color: white; border: none; }
-        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 1000; }
-        .modal-content { background: white; padding: 30px; border-radius: 16px; width: 500px; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        label { display: block; font-size: 12px; font-weight: 700; margin-bottom: 5px; color: #64748b; }
-        input { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 15px; }
-        .meter-box { background: #f1f5f9; padding: 15px; border-radius: 10px; }
-        #loader { position: fixed; top: 0; left: 0; width: 100%; height: 4px; background: var(--primary); display: none; }
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 1000; overflow-y: auto; }
+        .modal-content { background: white; padding: 30px; border-radius: 16px; width: 650px; max-height: 90vh; overflow-y: auto; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 10px; }
+        .grid-3 { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px; }
+        label { display: block; font-size: 11px; font-weight: 700; margin-bottom: 4px; color: #64748b; text-transform: uppercase; }
+        input { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 5px; font-family: inherit; }
+        .section-title { margin: 20px 0 10px 0; padding-bottom: 5px; border-bottom: 2px solid var(--bg); font-weight: 700; color: var(--primary); }
+        .box { background: #f1f5f9; padding: 15px; border-radius: 10px; margin-bottom: 15px; }
+        #loader { position: fixed; top: 0; left: 0; width: 100%; height: 4px; background: var(--primary); display: none; z-index: 2000; }
+        .cost-item { font-size: 12px; display: flex; justify-content: space-between; border-bottom: 1px dashed #cbd5e1; padding: 4px 0; }
     </style>
 </head>
 <body>
@@ -33,11 +33,11 @@
 <div class="container">
     <div class="card">
         <div style="display:flex; justify-content: space-between; align-items: center;">
-            <h2>Nájemníci</h2>
-            <button class="btn btn-p" onclick="openModal()">+ Přidat</button>
+            <h2>Správa nemovitostí</h2>
+            <button class="btn btn-p" onclick="openModal()">+ Nový nájemník</button>
         </div>
         <table>
-            <thead><tr><th>Jméno</th><th>Jednotka</th><th>Stav</th><th>Akce</th></tr></thead>
+            <thead><tr><th>Nájemník</th><th>Jednotka</th><th>Telefon</th><th>Smlouva do</th><th>Akce</th></tr></thead>
             <tbody id="tableBody"></tbody>
         </table>
     </div>
@@ -45,20 +45,49 @@
 
 <div id="modal" class="modal">
     <div class="modal-content">
-        <h3 id="mTitle">Karta nájemníka</h3><br>
+        <h3 id="mTitle">Karta nájemníka</h3>
         <input type="hidden" id="f-rowidx">
-        <label>Jméno</label><input type="text" id="f-name">
+        
+        <div class="section-title">Osobní údaje a adresa</div>
+        <label>Celé jméno</label><input type="text" id="f-name">
+        <div class="grid">
+            <div><label>Ulice a č.p.</label><input type="text" id="f-street"></div>
+            <div class="grid">
+                <div><label>Město</label><input type="text" id="f-city"></div>
+                <div><label>PSČ</label><input type="text" id="f-zip"></div>
+            </div>
+        </div>
+        <div class="grid">
+            <div><label>Telefon</label><input type="text" id="f-telefon"></div>
+            <div><label>Email</label><input type="email" id="f-email"></div>
+        </div>
+
+        <div class="section-title">Smluvní údaje</div>
         <div class="grid">
             <div><label>Jednotka</label><input type="text" id="f-unit"></div>
-            <div><label>Osob</label><input type="number" id="f-pocetosob"></div>
+            <div><label>Platnost smlouvy do</label><input type="date" id="f-platnostdo"></div>
         </div>
-        <div class="grid">
-            <div><label>Nájem</label><input type="number" id="f-najem"></div>
-            <div><label>Zálohy</label><input type="number" id="f-zalohy"></div>
+        <div class="grid-3">
+            <div><label>Nájemné (Kč)</label><input type="number" id="f-najem"></div>
+            <div><label>Zálohy (Kč)</label><input type="number" id="f-zalohy"></div>
+            <div><label>Počet osob</label><input type="number" id="f-pocetosob"></div>
         </div>
-        <div id="meterSection" class="meter-box"></div>
-        <div style="margin-top:20px; display:flex; gap:10px;">
-            <button class="btn btn-p" style="flex:2" onclick="handleSave()">Uložit</button>
+
+        <div class="section-title">Vodoměr</div>
+        <div id="meterSection" class="box"></div>
+
+        <div class="section-title">Mimořádné náklady a opravy</div>
+        <div class="box">
+            <label>Nový náklad (popis a cena)</label>
+            <div class="grid" style="grid-template-columns: 2fr 1fr">
+                <input type="text" id="f-costDesc" placeholder="např. Oprava žaluzií">
+                <input type="number" id="f-costPrice" placeholder="Kč">
+            </div>
+            <div id="costHistory" style="margin-top:10px;"></div>
+        </div>
+
+        <div style="margin-top:25px; display:flex; gap:10px;">
+            <button class="btn btn-p" style="flex:2" onclick="handleSave()">Uložit vše</button>
             <button class="btn" style="flex:1" onclick="closeModal()">Zrušit</button>
         </div>
     </div>
@@ -66,18 +95,18 @@
 
 <script>
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzfm7aHYnfodOGT1BRlmtQexj67oMFPNCfgQlOn1WLyJbivwyrdghxKJlrgA8_pni6Y/exec"; 
-    let STATE = { tenants: [], meters: [], payments: [] };
+    let STATE = { tenants: [], meters: [], payments: [], costs: [] };
 
     window.onload = loadData;
 
     async function loadData() {
         document.getElementById('loader').style.display = 'block';
-        const resp = await fetch(SCRIPT_URL);
-        const data = await resp.json();
-        STATE.tenants = data.tenants;
-        STATE.meters = data.meters;
-        STATE.payments = data.payments;
-        render();
+        try {
+            const resp = await fetch(SCRIPT_URL);
+            const data = await resp.json();
+            STATE = data;
+            render();
+        } catch(e) { alert("Chyba při načítání dat."); }
         document.getElementById('loader').style.display = 'none';
     }
 
@@ -85,8 +114,9 @@
         const html = STATE.tenants.map(t => `
             <tr>
                 <td><b>${t.name}</b></td>
-                <td>${t.unit}</td>
-                <td><span class="badge b-unpaid">Čeká</span></td>
+                <td>${t.unit || '-'}</td>
+                <td>${t.telefon || '-'}</td>
+                <td>${t.platnostdo ? new Date(t.platnostdo).toLocaleDateString('cs-CZ') : '-'}</td>
                 <td><button class="btn" onclick="openEdit(${t.rowidx})">Otevřít</button></td>
             </tr>
         `).join('');
@@ -95,27 +125,52 @@
 
     function openEdit(idx) {
         const t = STATE.tenants.find(x => x.rowidx == idx);
+        if(!t) return;
+
         document.getElementById('f-rowidx').value = t.rowidx;
-        document.getElementById('f-name').value = t.name;
-        document.getElementById('f-unit').value = t.unit;
-        document.getElementById('f-najem').value = t.najem;
-        document.getElementById('f-zalohy').value = t.zalohy;
-        document.getElementById('f-pocetosob').value = t.pocetosob;
+        document.getElementById('f-name').value = t.name || "";
+        document.getElementById('f-street').value = t.street || "";
+        document.getElementById('f-city').value = t.city || "";
+        document.getElementById('f-zip').value = t.zip || "";
+        document.getElementById('f-unit').value = t.unit || "";
+        document.getElementById('f-najem').value = t.najem || 0;
+        document.getElementById('f-zalohy').value = t.zalohy || 0;
+        document.getElementById('f-pocetosob').value = t.pocetosob || 1;
+        document.getElementById('f-telefon').value = t.telefon || "";
+        document.getElementById('f-email').value = t.email || "";
+        document.getElementById('f-platnostdo').value = t.platnostdo ? new Date(t.platnostdo).toISOString().split('T')[0] : "";
+        
+        // Reset polí pro nové náklady
+        document.getElementById('f-costDesc').value = "";
+        document.getElementById('f-costPrice').value = "";
 
-        // FILTROVÁNÍ HISTORIE VODOMĚRU
-        const history = STATE.meters.filter(m => m.name.trim() === t.name.trim());
-        const last = history.length > 0 ? history[history.length - 1] : null;
-
-        const box = document.getElementById('meterSection');
-        if (!last) {
-            box.innerHTML = `<label>První počáteční stav</label><input type="number" id="f-meterStart">`;
+        // Historie vodoměru
+        const mHistory = STATE.meters.filter(m => m.name.trim() === t.name.trim());
+        const lastM = mHistory.length > 0 ? mHistory[mHistory.length - 1] : null;
+        const mBox = document.getElementById('meterSection');
+        if (!lastM) {
+            mBox.innerHTML = `<label>První počáteční stav</label><input type="number" id="f-meterStart">`;
         } else {
-            box.innerHTML = `
-                <div class="grid">
-                    <div><label>Minulý stav</label><input type="number" id="f-meterStart" value="${last.koncovy}" readonly style="background:#eee"></div>
-                    <div><label>Nový odečet</label><input type="number" id="f-meterEnd"></div>
-                </div>`;
+            mBox.innerHTML = `<div class="grid">
+                <div><label>Minulý stav</label><input type="number" id="f-meterStart" value="${lastM.koncovy}" readonly style="background:#eee"></div>
+                <div><label>Nový odečet</label><input type="number" id="f-meterEnd"></div>
+            </div>`;
         }
+
+        // Historie nákladů pro aktuální rok
+        const curYear = new Date().getFullYear();
+        const cHistory = STATE.costs.filter(c => c.name.trim() === t.name.trim() && c.year == curYear);
+        const cBox = document.getElementById('costHistory');
+        if(cHistory.length > 0) {
+            let cHtml = '<label>Náklady v roce '+curYear+'</label>';
+            cHistory.forEach(c => {
+                cHtml += `<div class="cost-item"><span>${c.description}</span><b>${c.price} Kč</b></div>`;
+            });
+            cBox.innerHTML = cHtml;
+        } else {
+            cBox.innerHTML = '<div style="font-size:11px; color:#94a3b8">Žádné náklady pro tento rok.</div>';
+        }
+
         document.getElementById('modal').style.display = 'flex';
     }
 
@@ -123,25 +178,36 @@
         document.getElementById('f-rowidx').value = "";
         document.querySelectorAll('input').forEach(i => i.value = "");
         document.getElementById('meterSection').innerHTML = `<label>Počáteční stav</label><input type="number" id="f-meterStart">`;
+        document.getElementById('costHistory').innerHTML = "";
         document.getElementById('modal').style.display = 'flex';
     }
 
     function closeModal() { document.getElementById('modal').style.display = 'none'; }
 
     async function handleSave() {
+        document.getElementById('loader').style.display = 'block';
         const p = {
             rowidx: document.getElementById('f-rowidx').value,
             name: document.getElementById('f-name').value,
+            street: document.getElementById('f-street').value,
+            city: document.getElementById('f-city').value,
+            zip: document.getElementById('f-zip').value,
             unit: document.getElementById('f-unit').value,
             najem: document.getElementById('f-najem').value,
             zalohy: document.getElementById('f-zalohy').value,
             pocetosob: document.getElementById('f-pocetosob').value,
-            meterStart: document.getElementById('f-meterStart').value,
-            meterEnd: document.getElementById('f-meterEnd') ? document.getElementById('f-meterEnd').value : ""
+            telefon: document.getElementById('f-telefon').value,
+            email: document.getElementById('f-email').value,
+            platnostdo: document.getElementById('f-platnostdo').value,
+            meterStart: document.getElementById('f-meterStart') ? document.getElementById('f-meterStart').value : "",
+            meterEnd: document.getElementById('f-meterEnd') ? document.getElementById('f-meterEnd').value : "",
+            costDesc: document.getElementById('f-costDesc').value,
+            costPrice: document.getElementById('f-costPrice').value
         };
+
         await fetch(SCRIPT_URL, {method:'POST', mode:'no-cors', body: JSON.stringify({action:'saveTenant', payload:p})});
         closeModal();
-        setTimeout(loadData, 1000);
+        setTimeout(loadData, 1200);
     }
 </script>
 </body>
