@@ -463,12 +463,13 @@
         const sc = JSON.parse(saved.data); let shares = {};
         DATA.tenants.forEach(t => shares[t.name] = { voda:0, srazky:0, ele:0, odpady:0, uklid:0, celkem:0 });
 
-        // VODA
+       // VODA
         if(sc.voda) {
             const prumerVoda = sc.voda.m3 > 0 ? (sc.voda.cena / sc.voda.m3) : 0;
             sc.voda.tenants.forEach(n => {
-                const m = DATA.meters.filter(x => x.name == n && x.rok == year);
-                const spotreba = m.reduce((s, x) => s + Number(x.rozdil || 0), 0);
+                // OPRAVENO: Hledá sloupec 'year' a sloupec 'spotreba'
+                const m = DATA.meters.filter(x => x.name == n && x.year == year);
+                const spotreba = m.reduce((s, x) => s + Number(x.spotreba || 0), 0);
                 shares[n].voda = Math.round(spotreba * prumerVoda);
             });
         }
