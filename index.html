@@ -595,6 +595,7 @@
         document.getElementById('preview-tbody').innerHTML = html; document.getElementById('preview-section').classList.remove('hidden');
     }
 
+    // PŘIDÁNO: Tlačítka a skript pro odeslání/tisk uvnitř nového okna vyúčtování
     function generateSettlement() {
         const name = document.getElementById('f-name').value;
         const rok = prompt("Zadejte rok vyúčtování:", new Date().getFullYear());
@@ -628,11 +629,27 @@
         const icoHtml = t.typ === 'komerce' && t.ico ? `<br>IČO: ${t.ico}` : '';
 
         const w = window.open("", "_blank");
-        w.document.write(`<html><body style="font-family:Arial; padding:40px;">
-            <div style="max-width:800px; margin:auto; border:1px solid #ccc; padding:40px;">
+        w.document.write(`<html>
+        <head>
+            <title>Zúčtování ${rok} - ${t.name}</title>
+            <style>
+                @media print { .no-print { display: none !important; } }
+                .akce-btn { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px; margin: 0 5px; color: white; }
+                .bg-blue { background: #3498db; }
+                .bg-green { background: #27ae60; }
+            </style>
+        </head>
+        <body style="font-family:Arial; padding:40px;">
+            
+            <div class="no-print" style="text-align:center; margin-bottom:30px;">
+                <button class="akce-btn bg-blue" onclick="window.print()">🖨️ Vytisknout zúčtování</button>
+                <button class="akce-btn bg-green" id="btnEmail" onclick="odeslatEmailem()">✉️ Odeslat e-mailem (${t.email || 'Nemá zadán e-mail'})</button>
+            </div>
+
+            <div id="obsahZuctovani" style="max-width:800px; margin:auto; border:1px solid #ccc; padding:40px;">
                 <h1 style="text-align:center;">ROČNÍ ZÚČTOVÁNÍ ${rok}</h1>
                 <div style="display:flex; justify-content:space-between; margin-bottom:30px;">
-                    <div><strong>Poskytovatel:</strong><br>AMK TRABANT PLZEŇ z.s.<br>IČ: 45333637<br>Úslavská 75, Plzeň</div>
+                    <div><strong>Poskytovatel:</strong><br>AMK TRABANT PLZEŇ z.s.<br>IČ: 45333637<br>Úslavská 339/2, 326 00 Plzeň</div>
                     <div style="text-align:right;"><strong>Příjemce:</strong><br>${t.name}${icoHtml}<br>${t.street||''}<br>${t.zip||''} ${t.city||''}</div>
                 </div>
                 <hr>
@@ -645,7 +662,48 @@
                 </table>
                 <h3 style="margin-top:30px;">VÝSLEDEK ZÚČTOVÁNÍ: <span style="color:${vysledek>=0?'green':'red'}">${vysledek>=0?'PŘEPLATEK':'NEDOPLATEK'} ${Math.abs(vysledek)} Kč</span></h3>
             </div>
+
+            <script>
+                async function odeslatEmailem() {
+                    const email = "${t.email}";
+                    if (!email || email === "undefined") {
+                        alert("Tento nájemník nemá vyplněný e-mail!");
+                        return;
+                    }
+                    
+                    const btn = document.getElementById('btnEmail');
+                    btn.innerText = "Odesílám...";
+                    btn.disabled = true;
+                    
+                    const htmlObsah = document.getElementById('obsahZuctovani').outerHTML;
+                    
+                    try {
+                        const resp = await fetch("${SCRIPT_URL}", {
+                            method: "POST",
+                            body: JSON.stringify({
+                                action: 'sendSettlementEmail',
+                                email: email,
+                                subject: "Roční zúčtování ${rok} - AMK TRABANT PLZEŇ",
+                                body: htmlObsah
+                            })
+                        });
+                        const res = await resp.json();
+                        if(res.success) {
+                            btn.innerText = "✓ Úspěšně odesláno";
+                            btn.style.background = "#27ae60";
+                        } else {
+                            alert("Chyba při odesílání e-mailu přes server.");
+                            btn.innerText = "✉️ Zkusit odeslat znovu";
+                            btn.disabled = false;
+                        }
+                    } catch(e) {
+                        alert("Chyba připojení k serveru.");
+                        btn.disabled = false;
+                    }
+                }
+            </script>
         </body></html>`);
+        w.document.close();
     }
     function closeModal() { document.getElementById('modal').style.display = 'none'; }
     function renderTenantView() { const t = DATA.tenants.find(x => x.email.toLowerCase() === USER.email.toLowerCase()); document.getElementById('appHeader').innerText = "Vítejte, " + (t ? t.name : "Nájemníku"); document.getElementById('tView').innerHTML = t ? `<div style="background:white; padding:30px; border-radius:8px; border: 1px solid #eee;"><h3>Vaše jednotka: ${t.unit}</h3><p>Nájem: <b>${t.najem} Kč</b></p><p>Zálohy: <b>${t.zalohy || t.zaloha || 0} Kč</b></p><p>VS pro platby: <b>${t.vs || 'Není zadán'}</b></p></div>` : ""; }
