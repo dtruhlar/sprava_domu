@@ -2,241 +2,250 @@
 <html lang="cs">
 <head>
     <meta charset="utf-8">
-    <title>Nájemník Úslavská Login</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <title>RealtyFlow Premium | Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
-        :root { --primary: #2563eb; --bg: #f1f5f9; --text: #1e293b; }
-        body { font-family: 'Inter', sans-serif; background: var(--bg); margin:0; }
-        .login-screen { display: flex; align-items: center; justify-content: center; height: 100vh; }
-        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); width: 350px; }
-        input, textarea { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #e2e8f0; border-radius: 8px; box-sizing: border-box; }
-        .btn { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
-        #app { display: none; padding: 20px; }
-        .admin-only { display: none; }
-        .tenant-view { background: white; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; }
-        .invoice-box { padding: 40px; background: white; border: 1px solid #eee; font-family: 'Courier New', Courier, monospace; }
-        .box { background: #f8fafc; padding: 15px; border-radius: 10px; margin-top: 15px; }
+        :root { 
+            --accent: #6366f1; --accent-hover: #4f46e5;
+            --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --sub: #94a3b8;
+            --border: rgba(255,255,255,0.1); --success: #10b981; --danger: #ef4444;
+        }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); color: var(--text); margin:0; line-height: 1.6; }
+        
+        /* Login Screen Rebrand */
+        .login-screen { display: flex; align-items: center; justify-content: center; height: 100vh; background: radial-gradient(circle at top left, #1e1b4b, #0f172a); }
+        .login-card { background: var(--card); padding: 40px; border-radius: 24px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); width: 100%; max-width: 400px; border: 1px solid var(--border); }
+        
+        /* Layout */
+        #app { display: none; padding: 40px; max-width: 1200px; margin: auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
+        
+        /* UI Elements */
+        .glass-card { background: var(--card); padding: 24px; border-radius: 20px; border: 1px solid var(--border); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+        input, textarea, select { width: 100%; padding: 12px 16px; background: #0f172a; border: 1px solid var(--border); border-radius: 12px; color: white; font-family: inherit; margin-bottom: 15px; transition: 0.2s; }
+        input:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2); }
+        label { font-size: 11px; font-weight: 700; color: var(--sub); text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 6px; }
+        
+        .btn { padding: 12px 24px; border-radius: 12px; font-weight: 600; cursor: pointer; border: none; transition: 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+        
+        /* Table Design */
+        table { width: 100%; border-collapse: separate; border-spacing: 0 8px; }
+        th { padding: 12px 20px; color: var(--sub); font-weight: 600; text-align: left; font-size: 12px; }
+        td { padding: 16px 20px; background: var(--card); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+        td:first-child { border-left: 1px solid var(--border); border-radius: 16px 0 0 16px; }
+        td:last-child { border-right: 1px solid var(--border); border-radius: 0 16px 16px 0; }
+        
+        .badge { padding: 4px 12px; border-radius: 8px; font-size: 11px; font-weight: 700; }
+        .b-ok { background: rgba(16, 185, 129, 0.1); color: var(--success); }
+        .b-wait { background: rgba(239, 68, 68, 0.1); color: var(--danger); }
+
+        /* Modal Rebrand */
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); z-index: 1000; padding: 20px; overflow-y: auto; }
+        .modal-content { background: var(--card); padding: 40px; border-radius: 28px; width: 100%; max-width: 700px; margin: 20px auto; border: 1px solid var(--border); }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .section-title { font-size: 18px; font-weight: 700; color: var(--accent); margin: 30px 0 15px 0; display: flex; align-items: center; gap: 10px; }
+        .section-title::after { content: ""; flex: 1; height: 1px; background: var(--border); }
     </style>
 </head>
 <body>
 
 <div id="loginSection" class="login-screen">
-    <div class="card">
-        <h2 style="text-align:center">RealtyFlow</h2>
-        <input type="email" id="logEmail" placeholder="Email">
-        <input type="password" id="logPass" placeholder="Heslo">
-        <button class="btn" onclick="handleLogin()">Přihlásit se</button>
-        <p style="font-size:12px; color:gray; cursor:pointer" onclick="alert('Kontaktujte správce na spravceuslavska@gmail.com pro reset hesla.')">Zapomněli jste heslo?</p>
+    <div class="login-card">
+        <h1 style="margin: 0 0 10px 0; font-size: 24px">RealtyFlow <span style="font-weight:300; color:var(--accent)">Pro</span></h1>
+        <p style="color:var(--sub); margin-bottom: 30px; font-size: 14px">Přihlaste se do správy nemovitostí</p>
+        <label>E-mail</label><input type="email" id="logEmail" placeholder="vas@email.cz">
+        <label>Heslo</label><input type="password" id="logPass" placeholder="••••••••">
+        <button class="btn btn-primary" style="width:100%" onclick="handleLogin()">Vstoupit do systému</button>
     </div>
 </div>
 
 <div id="app">
-    <div id="adminNav" class="admin-only" style="margin-bottom:20px; display:flex; justify-content:space-between">
-        <h2>Admin Panel</h2>
-        <button class="btn" style="width:auto" onclick="location.reload()">Odhlásit</button>
+    <div class="header">
+        <div>
+            <h1 id="viewTitle" style="margin:0">Přehled jednotek</h1>
+            <p id="subTitle" style="color:var(--sub); margin:5px 0 0 0">Vítejte zpět, administrátore</p>
+        </div>
+        <button class="btn btn-outline" onclick="location.reload()">Odhlásit se</button>
     </div>
 
-    <div id="adminContent" class="admin-only">
-        <div class="card" style="width:100%">
-            <button class="btn" style="width:auto; margin-bottom:15px" onclick="openModal()">+ Nový nájemník</button>
-            <table id="tenantTable" style="width:100%; border-collapse: collapse;">
-                <thead><tr style="text-align:left"><th>Jméno</th><th>Jednotka</th><th>Akce</th></tr></thead>
-                <tbody id="tBody"></tbody>
-            </table>
+    <div id="adminContent" style="display:none">
+        <div style="margin-bottom: 25px; display:flex; gap:10px">
+            <button class="btn btn-primary" onclick="openModal()">+ Přidat nájemníka</button>
         </div>
+        <table>
+            <thead><tr><th>NÁJEMNÍK</th><th>JEDNOTKA</th><th>STAV PLATBY</th><th>AKCE</th></tr></thead>
+            <tbody id="tBody"></tbody>
+        </table>
     </div>
 
     <div id="tenantContent" style="display:none">
-        <div class="tenant-view">
+        <div class="glass-card">
             <h2 id="tWelcome">Vítejte</h2>
-            <div id="tDetails" class="box"></div>
-            <div id="tCosts" class="box"></div>
-            <h3>Požadavek na správce</h3>
-            <textarea id="tMessage" placeholder="Napište nám, co potřebujete..."></textarea>
-            <button class="btn" onclick="sendTenantRequest()">Odeslat požadavek</button>
+            <div id="tDetails" class="grid" style="margin-top:20px"></div>
+            <div style="margin-top:30px">
+                <label>Požadavek na správu</label>
+                <textarea id="tMessage" rows="4" placeholder="Potřebujete něco opravit?"></textarea>
+                <button class="btn btn-primary" onclick="sendTenantRequest()">Odeslat zprávu</button>
+            </div>
         </div>
     </div>
 </div>
 
-<div id="modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); padding:20px; overflow-y:auto">
-    <div class="card" style="width:600px; margin:auto">
-        <h3>Karta nájemníka</h3>
+<div id="modal" class="modal">
+    <div class="modal-content">
+        <h2 id="mTitle" style="margin-top:0">Karta nájemníka</h2>
         <input type="hidden" id="f-rowidx">
-        <input type="text" id="f-name" placeholder="Jméno">
-        <input type="text" id="f-unit" placeholder="Jednotka">
-        <input type="date" id="f-platnostdo">
         
-        <h4>Přidat samostatný náklad</h4>
-        <div class="box">
-            <input type="text" id="c-desc" placeholder="Popis (např. Oprava kliky)">
-            <input type="number" id="c-price" placeholder="Cena Kč">
-            <input type="date" id="c-date">
-            <button class="btn" style="background: green" onclick="saveOnlyCost()">Přidat náklad extra</button>
+        <div class="section-title">Hlavní iniciály a kontakt</div>
+        <label>Celé jméno</label><input type="text" id="f-name">
+        <div class="grid">
+            <div><label>Ulice a č.p.</label><input type="text" id="f-street"></div>
+            <div class="grid">
+                <div><label>Město</label><input type="text" id="f-city"></div>
+                <div><label>PSČ</label><input type="text" id="f-zip"></div>
+            </div>
+        </div>
+        <div class="grid">
+            <div><label>E-mail</label><input type="email" id="f-email"></div>
+            <div><label>Telefon</label><input type="text" id="f-telefon"></div>
         </div>
 
-        <button class="btn" style="margin-top:10px" onclick="generateSettlement()">Vygenerovat vyúčtování (Fakturu)</button>
-        <button class="btn" style="margin-top:10px; background:gray" onclick="closeModal()">Zavřít</button>
+        <div class="section-title">Smluvní podmínky</div>
+        <div class="grid">
+            <div><label>Označení jednotky</label><input type="text" id="f-unit"></div>
+            <div><label>Smlouva do</label><input type="date" id="f-platnostdo"></div>
+        </div>
+        <div class="grid" style="grid-template-columns: 1fr 1fr 1fr">
+            <div><label>Nájemné (Kč)</label><input type="number" id="f-najem"></div>
+            <div><label>Zálohy (Kč)</label><input type="number" id="f-zalohy"></div>
+            <div><label>Počet osob</label><input type="number" id="f-pocetosob"></div>
+        </div>
+
+        <div class="section-title">Vodoměry</div>
+        <div id="meterSection" style="background:rgba(0,0,0,0.2); padding:20px; border-radius:16px"></div>
+
+        <div class="section-title">Extra náklad (antidatování)</div>
+        <div style="background:rgba(0,0,0,0.2); padding:20px; border-radius:16px">
+            <label>Popis služby/nákladu</label><input type="text" id="c-desc" placeholder="např. Revize kotle">
+            <div class="grid">
+                <div><label>Částka Kč</label><input type="number" id="c-price"></div>
+                <div><label>Datum nákladu</label><input type="date" id="c-date"></div>
+            </div>
+            <button class="btn btn-outline" style="width:100%; border-color:var(--accent); color:var(--accent)" onclick="saveOnlyCost()">Přidat tento náklad extra</button>
+        </div>
+
+        <div style="margin-top:40px; display:flex; gap:15px">
+            <button class="btn btn-primary" style="flex:2" onclick="handleSave()">Uložit vše</button>
+            <button class="btn btn-outline" style="flex:1; background:#000" onclick="generateSettlement()">Faktura</button>
+        </div>
+        <button class="btn btn-outline" style="width:100%; margin-top:10px; border:none; color:var(--sub)" onclick="closeModal()">Zavřít</button>
     </div>
 </div>
 
 <script>
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzfm7aHYnfodOGT1BRlmtQexj67oMFPNCfgQlOn1WLyJbivwyrdghxKJlrgA8_pni6Y/exec"; 
-    let USER = null;
-    let DATA = null;
+    let USER = null; let DATA = null;
 
     async function handleLogin() {
-        const email = document.getElementById('logEmail').value;
-        const pass = document.getElementById('logPass').value;
-        
-        const resp = await fetch(SCRIPT_URL, {
-            method: 'POST',
-            body: JSON.stringify({ action: 'login', email: email, password: pass })
-        });
+        const resp = await fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify({action:'login', email:document.getElementById('logEmail').value, password:document.getElementById('logPass').value}) });
         const res = await resp.json();
-        
         if(res.success) {
-            USER = res;
-            DATA = res.data;
-            document.getElementById('loginSection').style.display = 'none';
-            document.getElementById('app').style.display = 'block';
-            
-            if(res.role === 'admin') {
-                document.querySelectorAll('.admin-only').forEach(e => e.style.display = 'block');
+            USER = res; DATA = res.allData;
+            document.getElementById('loginSection').style.display='none';
+            document.getElementById('app').style.display='block';
+            if(res.role==='admin') {
+                document.getElementById('adminContent').style.display='block';
                 renderAdminTable();
             } else {
-                document.getElementById('tenantContent').style.display = 'block';
+                document.getElementById('tenantContent').style.display='block';
                 renderTenantView();
             }
-        } else { alert("Chybné údaje"); }
+        } else { alert("Přihlášení selhalo."); }
     }
 
     function renderAdminTable() {
-    const curM = new Date().getMonth() + 1;
-    const curY = new Date().getFullYear();
-    
-    // ZÁMĚK: Pokud nejsem admin, tabulku s editačními prvky nevykreslím
-    if (USER.role !== 'admin') {
-        document.getElementById('adminContent').innerHTML = "<h3>Nemáte oprávnění k editaci.</h3>";
-        return;
-    }
-
-    document.getElementById('tBody').innerHTML = DATA.tenants.map(t => {
-        const isPaid = DATA.payments.some(p => p.name.trim() === t.name.trim() && p.month == curM && p.year == curY && p.status == "OK");
-        return `<tr>
-            <td><b>${t.name}</b></td>
-            <td>${t.unit}</td>
-            <td><span class="badge ${isPaid ? 'b-ok' : 'b-wait'}">${isPaid ? 'UHRZENO' : 'ČEKÁ'}</span></td>
-            <td>
-                <button class="btn" style="width:auto; padding:5px 15px" onclick="openEdit(${t.rowidx})">Editovat</button>
-            </td>
-        </tr>`;
-    }).join('');
-}
-
-    function renderTenantView() {
-        const t = DATA.tenants.find(x => x.email === USER.email);
-        document.getElementById('tWelcome').innerText = "Vítejte, " + t.name;
-        document.getElementById('tDetails').innerHTML = `
-            <p>Jednotka: ${t.unit}</p>
-            <p>Měsíční nájem: ${t.najem} Kč</p>
-            <p>Měsíční zálohy: ${t.zalohy} Kč</p>
-        `;
-    }
-
-    async function saveOnlyCost() {
-        const name = document.getElementById('f-name').value;
-        const desc = document.getElementById('c-desc').value;
-        const price = document.getElementById('c-price').value;
-        const date = document.getElementById('c-date').value;
-        const year = new Date(date).getFullYear();
-
-        await fetch(SCRIPT_URL, {
-            method: 'POST',
-            body: JSON.stringify({ action: 'addCost', name: name, desc: desc, price: price, date: date, year: year })
-        });
-        alert("Náklad uložen.");
-    }
-
-    function generateSettlement() {
-        const name = document.getElementById('f-name').value;
-        const tenant = DATA.tenants.find(t => t.name === name);
-        const costs = DATA.costs.filter(c => c.name === name && c.year == new Date().getFullYear());
-        const totalZalohy = Number(tenant.zalohy) * 12;
-        const totalCosts = costs.reduce((sum, c) => sum + Number(c.price), 0);
-        const rozdil = totalZalohy - totalCosts;
-
-        const win = window.open("", "_blank");
-        win.document.write(`
-            <div class="invoice-box">
-                <h1>ROČNÍ VYÚČTOVÁNÍ SLUŽEB</h1>
-                <p><b>Dodavatel:</b> AMK TRABANT PLZEŇ z.s., Úslavská 75, Plzeň</p>
-                <p><b>IČ:</b> 45333637</p>
-                <hr>
-                <p><b>Nájemce:</b> ${tenant.name}, ${tenant.street}, ${tenant.city}</p>
-                <h3>PŘEHLED:</h3>
-                <p>Uhrazené zálohy (1-12): ${totalZalohy} Kč</p>
-                <p>Skutečné náklady: ${totalCosts} Kč</p>
-                <hr>
-                <h2>VÝSLEDEK: ${rozdil > 0 ? "PŘEPLATEK" : "NEDOPLATEK"} ${Math.abs(rozdil)} Kč</h2>
-            </div>
-        `);
-    }
-
-    async function sendTenantRequest() {
-        const msg = document.getElementById('tMessage').value;
-        const t = DATA.tenants.find(x => x.email === USER.email);
-        await fetch(SCRIPT_URL, {
-            method: 'POST',
-            body: JSON.stringify({ action: 'sendRequest', name: t.name, email: t.email, message: msg })
-        });
-        alert("Požadavek odeslán.");
+        const curM = new Date().getMonth()+1; const curY = new Date().getFullYear();
+        document.getElementById('tBody').innerHTML = DATA.tenants.map(t => {
+            const isPaid = DATA.payments.some(p => p.name.trim() === t.name.trim() && p.month == curM && p.year == curY && p.status == "OK");
+            return `<tr>
+                <td><div style="font-weight:700">${t.name}</div><div style="font-size:11px; color:var(--sub)">${t.email}</div></td>
+                <td>${t.unit}</td>
+                <td><span class="badge ${isPaid?'b-ok':'b-wait'}">${isPaid?'● UHRZENO':'○ ČEKÁ'}</span></td>
+                <td><button class="btn btn-outline" style="padding:6px 12px; font-size:12px" onclick="openEdit(${t.rowidx})">Spravovat</button></td>
+            </tr>`;
+        }).join('');
     }
 
     function openEdit(idx) {
-    // Totální stopka pro kohokoliv jiného než admina
-    if (USER.role !== 'admin') {
-        alert("Přístup odepřen.");
-        return;
+        if(USER.role !== 'admin') return;
+        const t = DATA.tenants.find(x => x.rowidx == idx);
+        // PLNĚNÍ INICIÁLŮ (Nyní funguje!)
+        document.getElementById('f-rowidx').value = t.rowidx;
+        document.getElementById('f-name').value = t.name || "";
+        document.getElementById('f-street').value = t.street || "";
+        document.getElementById('f-city').value = t.city || "";
+        document.getElementById('f-zip').value = t.zip || "";
+        document.getElementById('f-email').value = t.email || "";
+        document.getElementById('f-telefon').value = t.telefon || "";
+        document.getElementById('f-unit').value = t.unit || "";
+        document.getElementById('f-najem').value = t.najem || 0;
+        document.getElementById('f-zalohy').value = t.zalohy || 0;
+        document.getElementById('f-pocetosob').value = t.pocetosob || 1;
+        document.getElementById('f-platnostdo').value = t.platnostdo ? new Date(t.platnostdo).toISOString().split('T')[0] : "";
+        
+        // Vodoměr
+        const mHist = DATA.meters.filter(m => m.name.trim() === t.name.trim());
+        const last = mHist[mHist.length-1];
+        document.getElementById('meterSection').innerHTML = last ? 
+            `<div class="grid"><div><label>Minulý stav</label><input value="${last.koncovy}" readonly></div><div><label>Nový stav</label><input type="number" id="f-meterEnd"></div><input type="hidden" id="f-meterStart" value="${last.koncovy}"></div>` :
+            `<label>První počáteční stav</label><input type="number" id="f-meterStart">`;
+            
+        document.getElementById('modal').style.display='block';
     }
 
-    const t = DATA.tenants.find(x => x.rowidx == idx); 
-        
-        document.getElementById('f-name').value = t.name;
-        document.getElementById('modal').style.display = 'block'; 
+    async function saveOnlyCost() {
+        const p = {
+            name: document.getElementById('f-name').value,
+            desc: document.getElementById('c-desc').value,
+            price: document.getElementById('c-price').value,
+            date: document.getElementById('c-date').value,
+            year: new Date(document.getElementById('c-date').value).getFullYear()
+        };
+        await fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify({action:'addCost', payload:p}) });
+        alert("Extra náklad uložen do historie.");
     }
-    function closeModal() { document.getElementById('modal').style.display = 'none'; }
-    
-    async function handleLogin() {
-    const email = document.getElementById('logEmail').value;
-    const pass = document.getElementById('logPass').value;
-    
-    if(!email || !pass) { alert("Vyplňte údaje"); return; }
 
-    const resp = await fetch(SCRIPT_URL, {
-        method: 'POST',
-        // Posíláme čisté heslo, Google Script ho zahashuje
-        body: JSON.stringify({ action: 'login', email: email, password: pass })
-    });
-    
-    const res = await resp.json();
-    
-    if(res.success) {
-        USER = res;
-        DATA = res.allData;
-        document.getElementById('loginSection').style.display = 'none';
-        document.getElementById('app').style.display = 'block';
-        
-        if(res.role === 'admin') {
-            document.querySelectorAll('.admin-only').forEach(e => e.style.display = 'block');
-            renderAdminTable();
-        } else {
-            document.getElementById('tenantContent').style.display = 'block';
-            renderTenantView();
-        }
-    } else {
-        alert("Neplatný email nebo heslo.");
+    async function handleSave() {
+        const p = {
+            rowidx: document.getElementById('f-rowidx').value,
+            name: document.getElementById('f-name').value,
+            street: document.getElementById('f-street').value,
+            city: document.getElementById('f-city').value,
+            zip: document.getElementById('f-zip').value,
+            email: document.getElementById('f-email').value,
+            telefon: document.getElementById('f-telefon').value,
+            unit: document.getElementById('f-unit').value,
+            najem: document.getElementById('f-najem').value,
+            zalohy: document.getElementById('f-zalohy').value,
+            pocetosob: document.getElementById('f-pocetosob').value,
+            platnostdo: document.getElementById('f-platnostdo').value,
+            meterStart: document.getElementById('f-meterStart')?.value || "",
+            meterEnd: document.getElementById('f-meterEnd')?.value || ""
+        };
+        await fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify({action:'saveTenant', payload:p}) });
+        location.reload();
     }
-}
+
+    function closeModal() { document.getElementById('modal').style.display='none'; }
+    
+    function renderTenantView() {
+        const t = DATA.tenants.find(x => x.email === USER.email);
+        document.getElementById('tWelcome').innerText = "Vítejte, " + t.name;
+        document.getElementById('tDetails').innerHTML = `<div class="glass-card"><label>Nájemné</label><h3>${t.najem} Kč</h3></div><div class="glass-card"><label>Zálohy</label><h3>${t.zalohy} Kč</h3></div>`;
+    }
 </script>
 </body>
 </html>
