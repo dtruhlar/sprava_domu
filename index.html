@@ -86,6 +86,12 @@
             <div><label>Celé jméno</label><input type="text" id="f-name"></div>
             <div><label>Označení jednotky</label><input type="text" id="f-unit"></div>
         </div>
+
+        <div style="background:#f1f5f9; padding: 10px; border-radius: 6px; margin-bottom: 15px; border-left: 4px solid #3498db;">
+            <label style="color:#3498db">Přiřazený Variabilní Symbol (VS) pro platby</label>
+            <input type="text" id="f-vs" placeholder="např. 202401" style="margin-bottom:0">
+        </div>
+
         <div style="background:#f8f9fa; padding:15px; border-radius:6px; margin-bottom:15px">
             <label>Ulice a č.p.</label><input type="text" id="f-street">
             <div class="grid">
@@ -223,6 +229,8 @@
             const t = DATA.tenants.find(x => x.rowidx == idx);
             document.getElementById('f-rowidx').value = t.rowidx;
             document.getElementById('f-name').value = t.name || "";
+            document.getElementById('f-unit').value = t.unit || "";
+            document.getElementById('f-vs').value = t.vs || ""; // NAČTENÍ VS
             document.getElementById('f-street').value = t.street || "";
             document.getElementById('f-city').value = t.city || "";
             document.getElementById('f-zip').value = t.zip || "";
@@ -231,7 +239,6 @@
             document.getElementById('f-najem').value = t.najem || 0;
             document.getElementById('f-zalohy').value = t.zalohy || 0;
             document.getElementById('f-pocetosob').value = t.pocetosob || 1;
-            document.getElementById('f-unit').value = t.unit || "";
             if(t.platnostdo) document.getElementById('f-platnostdo').value = new Date(t.platnostdo).toISOString().split('T')[0];
 
             const mHist = DATA.meters.filter(m => m.name && t.name && m.name.toString().trim().toLowerCase() === t.name.toString().trim().toLowerCase());
@@ -248,6 +255,8 @@
         const p = {
             rowidx: document.getElementById('f-rowidx').value,
             name: document.getElementById('f-name').value,
+            unit: document.getElementById('f-unit').value,
+            vs: document.getElementById('f-vs').value, // ULOŽENÍ VS
             street: document.getElementById('f-street').value,
             city: document.getElementById('f-city').value,
             zip: document.getElementById('f-zip').value,
@@ -256,7 +265,6 @@
             najem: document.getElementById('f-najem').value,
             zalohy: document.getElementById('f-zalohy').value,
             pocetosob: document.getElementById('f-pocetosob').value,
-            unit: document.getElementById('f-unit').value,
             platnostdo: document.getElementById('f-platnostdo').value,
             meterStart: document.getElementById('f-meterStart')?.value || "",
             meterEnd: document.getElementById('f-meterEnd')?.value || ""
@@ -307,7 +315,7 @@
     function renderTenantView() {
         const t = DATA.tenants.find(x => x.email.toLowerCase() === USER.email.toLowerCase());
         document.getElementById('appHeader').innerText = "Vítejte, " + (t ? t.name : "Nájemníku");
-        document.getElementById('tView').innerHTML = t ? `<div style="background:white; padding:30px; border-radius:8px;"><h3>Vaše jednotka: ${t.unit}</h3><p>Nájem: <b>${t.najem} Kč</b></p><p>Zálohy: <b>${t.zalohy} Kč</b></p></div>` : "";
+        document.getElementById('tView').innerHTML = t ? `<div style="background:white; padding:30px; border-radius:8px;"><h3>Vaše jednotka: ${t.unit}</h3><p>Nájem: <b>${t.najem} Kč</b></p><p>Zálohy: <b>${t.zalohy} Kč</b></p><p>VS pro platby: <b>${t.vs || 'Není zadán'}</b></p></div>` : "";
     }
 </script>
 </body>
