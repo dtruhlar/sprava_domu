@@ -258,7 +258,7 @@
 </div>
 
 <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzfm7aHYnfodOGT1BRlmtQexj67oMFPNCfgQlOn1WLyJbivwyrdghxKJlrgA8_pni6Y/exec"; // DOPLŇ URL
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzfm7aHYnfodOGT1BRlmtQexj67oMFPNCfgQlOn1WLyJbivwyrdghxKJlrgA8_pni6Y/exec"; // DOPLŇ URL!!!
     let DATA = null; let USER = null; let CUR_EMAIL = "";
     const mesiceNázvy = ["", "Leden", "Únor", "Březen", "Duben", "Květen", "Červen", "Červenec", "Srpen", "Září", "Říjen", "Listopad", "Prosinec"];
 
@@ -354,7 +354,19 @@
 
     async function handleSave() {
         const btn = document.getElementById('saveBtn'); btn.innerText = "Ukládám...";
-        const p = { rowidx: document.getElementById('f-rowidx').value, typ: document.getElementById('f-typ').value, name: document.getElementById('f-name').value, jednatel: document.getElementById('f-jednatel').value, ico: document.getElementById('f-ico').value, dph: document.getElementById('f-dph').checked ? "Ano" : "Ne", plocha: document.getElementById('f-plocha').value, unit: document.getElementById('f-unit').value, vs: document.getElementById('f-vs').value, street: document.getElementById('f-street').value, city: document.getElementById('f-city').value, zip: document.getElementById('f-zip').value, email: document.getElementById('f-email').value, telefon: document.getElementById('f-telefon').value, najem: document.getElementById('f-najem').value, zalohy: document.getElementById('f-zalohy').value, pocetosob: document.getElementById('f-pocetosob').value, platnostdo: document.getElementById('f-platnostdo').value, meterStart: document.getElementById('f-meterStart')?.value || "", meterEnd: document.getElementById('f-meterEnd')?.value || "" };
+
+        // LOGIKA PRO ZÁPIS VODOMĚRU - Zabrání zahození prvního vstupu
+        let mStart = document.getElementById('f-meterStart')?.value || "";
+        let mEnd = document.getElementById('f-meterEnd')?.value || "";
+        let finalStart = ""; let finalEnd = "";
+
+        if (mEnd !== "") {
+            finalStart = mStart; finalEnd = mEnd; // Klasický nový odečet
+        } else if (mStart !== "" && !document.getElementById('f-meterEnd')) {
+            finalStart = mStart; finalEnd = mStart; // Úplně první založení vodoměru
+        }
+
+        const p = { rowidx: document.getElementById('f-rowidx').value, typ: document.getElementById('f-typ').value, name: document.getElementById('f-name').value, jednatel: document.getElementById('f-jednatel').value, ico: document.getElementById('f-ico').value, dph: document.getElementById('f-dph').checked ? "Ano" : "Ne", plocha: document.getElementById('f-plocha').value, unit: document.getElementById('f-unit').value, vs: document.getElementById('f-vs').value, street: document.getElementById('f-street').value, city: document.getElementById('f-city').value, zip: document.getElementById('f-zip').value, email: document.getElementById('f-email').value, telefon: document.getElementById('f-telefon').value, najem: document.getElementById('f-najem').value, zalohy: document.getElementById('f-zalohy').value, pocetosob: document.getElementById('f-pocetosob').value, platnostdo: document.getElementById('f-platnostdo').value, meterStart: finalStart, meterEnd: finalEnd };
         const resp = await fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify({action:'saveTenant', payload:p}) });
         DATA = await resp.json(); renderAdminTable(); btn.innerText = "Uložit celou kartu"; closeModal();
     }
@@ -407,7 +419,6 @@
         document.getElementById('voda-segments').innerHTML = ""; document.getElementById('srazky-segments').innerHTML = "";
         document.getElementById('shared-year').value = year;
 
-        // Auto-load původních stavů elektřiny z minulého roku
         const minulyRok = DATA.sharedCosts.find(s => s.year == (year - 1));
         if(minulyRok && minulyRok.data) {
             const mSc = JSON.parse(minulyRok.data);
@@ -463,18 +474,16 @@
         const sc = JSON.parse(saved.data); let shares = {};
         DATA.tenants.forEach(t => shares[t.name] = { voda:0, srazky:0, ele:0, odpady:0, uklid:0, celkem:0 });
 
-       // VODA
+        // VODA - Agnostické čtení sloupců z tabulky (podporuje 'rok/year' i 'rozdil/spotreba')
         if(sc.voda) {
             const prumerVoda = sc.voda.m3 > 0 ? (sc.voda.cena / sc.voda.m3) : 0;
             sc.voda.tenants.forEach(n => {
-                // OPRAVENO: Hledá sloupec 'year' a sloupec 'spotreba'
-                const m = DATA.meters.filter(x => x.name == n && x.year == year);
-                const spotreba = m.reduce((s, x) => s + Number(x.spotreba || 0), 0);
+                const m = DATA.meters.filter(x => x.name == n && (x.year == year || x.rok == year));
+                const spotreba = m.reduce((s, x) => s + Number(x.spotreba || x.rozdil || 0), 0);
                 shares[n].voda = Math.round(spotreba * prumerVoda);
             });
         }
 
-        // SRÁŽKOVNÉ (Dle m2)
         if(sc.srazky) {
             let totalPlocha = 0;
             sc.srazky.tenants.forEach(n => { const t = DATA.tenants.find(x=>x.name==n); totalPlocha += Number(t?.plocha || 0); });
@@ -484,7 +493,6 @@
             }
         }
 
-        // ELEKTŘINA
         if(sc.ele) {
             const hlavniSpotreba = Number(sc.ele.hlavniEnd || 0) - Number(sc.ele.hlavniStart || 0);
             const podruznySpotreba = Number(sc.ele.podruznyEnd || 0) - Number(sc.ele.podruznyStart || 0);
@@ -496,7 +504,6 @@
             }
         }
 
-        // ODPADY Čistá Plzeň (Dle osob)
         if(sc.odpadyCP) {
             let totalOsobCP = 0;
             sc.odpadyCP.tenants.forEach(n => { const t = DATA.tenants.find(x=>x.name==n); totalOsobCP += Number(t?.pocetosob || 1); });
@@ -506,13 +513,11 @@
             }
         }
 
-        // ODPADY AVE (Rovným dílem)
         if(sc.odpadyAVE && sc.odpadyAVE.tenants.length > 0) {
             const avePodil = Math.round(Number(sc.odpadyAVE.cena || 0) / sc.odpadyAVE.tenants.length);
             sc.odpadyAVE.tenants.forEach(n => shares[n].odpady += avePodil);
         }
 
-        // ÚKLID
         if(sc.uklid && sc.uklid.tenants.length > 0) {
             const uklidPodil = Math.round(Number(sc.uklid.cena || 0) / sc.uklid.tenants.length);
             sc.uklid.tenants.forEach(n => shares[n].uklid = uklidPodil);
@@ -548,7 +553,7 @@
         const celkemVybranoNaZalohach = pocetMesicu * tZaloha;
         const celkemVybranoNaNajmu = pocetMesicu * tNajem;
 
-        // Oprava "undefined": hledáme všechny možné názvy popisu
+        // Oprava "undefined": hledá všechny možné varianty názvů sloupců z Google Tabulky
         const costs = DATA.costs.filter(c => c.name == name && c.year == rok);
         const indNaklady = costs.reduce((s, c) => s + Number(c.price || c.cena || c.castka || 0), 0);
         let nakladyHtml = costs.map(c => `<tr><td style="padding:8px; border:1px solid #ddd;">${c.popis || c.description || c.desc || c.naklad || 'Mimořádný náklad'}</td><td style="text-align:right; padding:8px; border:1px solid #ddd;">${c.price || c.cena || c.castka || 0} Kč</td></tr>`).join('');
