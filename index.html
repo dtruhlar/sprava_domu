@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Trabat nájemník | Úslavská</title>
+    <title>Property Manager Pro | GitHub</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -74,9 +74,7 @@
     <div class="modal-content">
         <h2 id="mTitle" style="margin-bottom: 20px;">Karta nájemníka</h2>
         <input type="hidden" id="f-rowidx">
-        
         <label>Celé jméno</label><input type="text" id="f-name">
-        
         <div class="grid">
             <div><label>Jednotka</label><input type="text" id="f-unit"></div>
             <div><label>Počet osob</label><input type="number" id="f-pocetosob"></div>
@@ -90,13 +88,9 @@
             <div><label>Email</label><input type="email" id="f-email"></div>
         </div>
         <label>Platnost smlouvy do</label><input type="date" id="f-platnostdo">
-        
         <hr style="margin: 20px 0; border: 0; border-top: 1px solid var(--border);">
-        
         <h3 style="margin-bottom: 10px;">Stav vodoměru</h3>
-        <div id="meter-container" class="meter-box">
-            </div>
-
+        <div id="meter-container" class="meter-box"></div>
         <div style="display: flex; gap: 10px; margin-top: 25px;">
             <button class="btn btn-p" style="flex: 2" onclick="handleSave()">Uložit vše</button>
             <button id="delBtn" class="btn btn-danger" style="flex: 1; display:none" onclick="handleDelete()">Smazat</button>
@@ -116,11 +110,11 @@
         try {
             const resp = await fetch(SCRIPT_URL);
             const data = await resp.json();
-            STATE.tenants = data.tenants.map(t => { let n = {}; for(let k in t) n[k.toLowerCase()] = t[k]; return n; });
-            STATE.payments = data.payments.map(p => { let n = {}; for(let k in p) n[k.toLowerCase()] = p[k]; return n; });
-            STATE.meters = data.meters.map(m => { let n = {}; for(let k in m) n[k.toLowerCase()] = m[k]; return n; });
+            STATE.tenants = (data.tenants || []).map(t => { let n = {}; for(let k in t) n[k.toLowerCase()] = t[k]; return n; });
+            STATE.payments = (data.payments || []).map(p => { let n = {}; for(let k in p) n[k.toLowerCase()] = p[k]; return n; });
+            STATE.meters = (data.meters || []).map(m => { let n = {}; for(let k in m) n[k.toLowerCase()] = m[k]; return n; });
             renderTable();
-        } catch (e) { alert("Chyba načítání."); }
+        } catch (e) { console.error(e); alert("Chyba načítání dat."); }
         toggleLoader(false);
     }
 
@@ -129,18 +123,10 @@
         const now = new Date();
         const curM = now.getMonth() + 1;
         const curY = now.getFullYear();
-
         tbody.innerHTML = STATE.tenants.map(t => {
-            const isPaid = STATE.payments.some(p => String(p.name).trim() === String(t.name).trim() && Number(p.month) === curM && Number(p.year) === curY && p.status === "OK");
+            const isPaid = STATE.payments.some(p => String(p.name).trim().toLowerCase() === String(t.name).trim().toLowerCase() && Number(p.month) === curM && Number(p.year) === curY && p.status === "OK");
             const d = t.platnostdo ? new Date(t.platnostdo).toLocaleDateString('cs-CZ') : '-';
-            return `<tr>
-                <td><b>${t.name}</b></td>
-                <td>${t.unit || ''}</td>
-                <td>${(Number(t.najem||0)+Number(t.zalohy||0)).toLocaleString()} Kč</td>
-                <td>${d}</td>
-                <td><span class="badge ${isPaid?'b-success':'b-unpaid'}">${isPaid?'● Uhrazeno':'○ Čeká'}</span></td>
-                <td><button class="btn" onclick="openEdit(${t.rowidx})">Otevřít kartu</button></td>
-            </tr>`;
+            return `<tr><td><b>${t.name}</b></td><td>${t.unit || ''}</td><td>${(Number(t.najem||0)+Number(t.zalohy||0)).toLocaleString()} Kč</td><td>${d}</td><td><span class="badge ${isPaid?'b-success':'b-unpaid'}">${isPaid?'● Uhrazeno':'○ Čeká'}</span></td><td><button class="btn" onclick="openEdit(${t.rowidx})">Otevřít kartu</button></td></tr>`;
         }).join('');
     }
 
@@ -148,9 +134,9 @@
         const t = STATE.tenants.find(x => Number(x.rowidx) === Number(idx));
         if(!t) return;
         
-        // Najdeme historii vodoměru pro daného nájemníka
-        const mHistory = STATE.meters.filter(x => String(x.name).trim() === String(t.name).trim());
-        const lastEntry = mHistory[mHistory.length - 1];
+        // Robustní hledání historie: trim a malé písmena pro jistotu
+        const mHistory = STATE.meters.filter(x => String(x.name).trim().toLowerCase() === String(t.name).trim().toLowerCase());
+        const lastEntry = mHistory.length > 0 ? mHistory[mHistory.length - 1] : null;
 
         document.getElementById('f-rowidx').value = t.rowidx;
         document.getElementById('f-name').value = t.name || "";
@@ -163,30 +149,13 @@
         document.getElementById('f-platnostdo').value = t.platnostdo ? new Date(t.platnostdo).toISOString().split('T')[0] : "";
         
         const mContainer = document.getElementById('meter-container');
-        
         if (!lastEntry) {
-            // NENÍ HISTORIE - ukázat pole pro zadání prvního stavu
-            mContainer.innerHTML = `
-                <label>Počáteční stav (při nastěhování)</label>
-                <input type="number" id="f-meterStart" placeholder="Zadejte výchozí stav">
-                <input type="hidden" id="f-meterEnd" value="">
-            `;
+            mContainer.innerHTML = `<label>Počáteční stav (při nastěhování)</label><input type="number" id="f-meterStart" placeholder="Zadejte výchozí stav"><input type="hidden" id="f-meterEnd" value="">`;
         } else {
-            // JE HISTORIE - ukázat poslední stav a pole pro nový
-            mContainer.innerHTML = `
-                <div class="grid" style="margin-bottom:0">
-                    <div>
-                        <label>Poslední odečet</label>
-                        <input type="number" id="f-meterStart" value="${lastEntry.koncovy}" readonly style="background:#e2e8f0">
-                    </div>
-                    <div>
-                        <label>Nový odečet</label>
-                        <input type="number" id="f-meterEnd" placeholder="Aktuální stav">
-                    </div>
-                </div>
-            `;
+            // Používáme klíč 'koncovy' (podle tvé tabulky Meters)
+            const lastVal = lastEntry.koncovy || lastEntry.koncovystav || 0;
+            mContainer.innerHTML = `<div class="grid" style="margin-bottom:0"><div><label>Poslední odečet</label><input type="number" id="f-meterStart" value="${lastVal}" readonly style="background:#e2e8f0"></div><div><label>Nový odečet</label><input type="number" id="f-meterEnd" placeholder="Aktuální stav"></div></div>`;
         }
-        
         document.getElementById('delBtn').style.display = 'block';
         document.getElementById('modal').style.display = 'flex';
     }
@@ -194,11 +163,7 @@
     function openModal() {
         document.getElementById('f-rowidx').value = "";
         document.querySelectorAll('input').forEach(i => i.value = "");
-        document.getElementById('meter-container').innerHTML = `
-            <label>Počáteční stav vodoměru</label>
-            <input type="number" id="f-meterStart" placeholder="Zadejte stav">
-            <input type="hidden" id="f-meterEnd" value="">
-        `;
+        document.getElementById('meter-container').innerHTML = `<label>Počáteční stav vodoměru</label><input type="number" id="f-meterStart" placeholder="Zadejte stav"><input type="hidden" id="f-meterEnd" value="">`;
         document.getElementById('delBtn').style.display = 'none';
         document.getElementById('modal').style.display = 'flex';
     }
@@ -217,18 +182,18 @@
             telefon: document.getElementById('f-telefon').value,
             pocetosob: document.getElementById('f-pocetosob').value,
             platnostdo: document.getElementById('f-platnostdo').value,
-            meterStart: document.getElementById('f-meterStart').value,
-            meterEnd: document.getElementById('f-meterEnd').value
+            meterStart: document.getElementById('f-meterStart') ? document.getElementById('f-meterStart').value : "",
+            meterEnd: document.getElementById('f-meterEnd') ? document.getElementById('f-meterEnd').value : ""
         };
         await fetch(SCRIPT_URL, { method:'POST', mode:'no-cors', body: JSON.stringify({action:'saveTenant', payload:p}) });
-        setTimeout(() => { closeModal(); loadData(); }, 1000);
+        setTimeout(() => { closeModal(); loadData(); }, 1200);
     }
 
     async function handleDelete() {
-        if(!confirm("Smazat?")) return;
+        if(!confirm("Smazat nájemníka?")) return;
         toggleLoader(true);
         await fetch(SCRIPT_URL, { method:'POST', mode:'no-cors', body: JSON.stringify({action:'deleteTenant', rowidx:document.getElementById('f-rowidx').value}) });
-        setTimeout(() => { closeModal(); loadData(); }, 1000);
+        setTimeout(() => { closeModal(); loadData(); }, 1200);
     }
     function toggleLoader(s) { document.getElementById('loader').style.display = s?'block':'none'; }
 </script>
