@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Property Manager Pro | GitHub</title>
+    <title>Trabat nájemník | Úslavská</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -37,6 +37,7 @@
         #loader { position: fixed; top: 0; left: 0; width: 100%; height: 4px; background: #e2e8f0; z-index: 2000; display: none; }
         #loader-fill { width: 30%; height: 100%; background: var(--primary); animation: loading 1.5s infinite linear; }
         @keyframes loading { from { margin-left: -30%; } to { margin-left: 100%; } }
+        .meter-box { background: #f1f5f9; padding: 15px; border-radius: 12px; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -73,7 +74,9 @@
     <div class="modal-content">
         <h2 id="mTitle" style="margin-bottom: 20px;">Karta nájemníka</h2>
         <input type="hidden" id="f-rowidx">
+        
         <label>Celé jméno</label><input type="text" id="f-name">
+        
         <div class="grid">
             <div><label>Jednotka</label><input type="text" id="f-unit"></div>
             <div><label>Počet osob</label><input type="number" id="f-pocetosob"></div>
@@ -87,12 +90,13 @@
             <div><label>Email</label><input type="email" id="f-email"></div>
         </div>
         <label>Platnost smlouvy do</label><input type="date" id="f-platnostdo">
+        
         <hr style="margin: 20px 0; border: 0; border-top: 1px solid var(--border);">
-        <h3 style="margin-bottom: 15px;">Vodoměr (Odečet)</h3>
-        <div class="grid">
-            <div><label>Počáteční stav</label><input type="number" id="f-mStart"></div>
-            <div><label>Nový koncový stav</label><input type="number" id="f-mEnd" placeholder="Zadejte aktuální stav"></div>
-        </div>
+        
+        <h3 style="margin-bottom: 10px;">Stav vodoměru</h3>
+        <div id="meter-container" class="meter-box">
+            </div>
+
         <div style="display: flex; gap: 10px; margin-top: 25px;">
             <button class="btn btn-p" style="flex: 2" onclick="handleSave()">Uložit vše</button>
             <button id="delBtn" class="btn btn-danger" style="flex: 1; display:none" onclick="handleDelete()">Smazat</button>
@@ -143,7 +147,10 @@
     function openEdit(idx) {
         const t = STATE.tenants.find(x => Number(x.rowidx) === Number(idx));
         if(!t) return;
-        const m = STATE.meters.filter(x => String(x.name).trim() === String(t.name).trim()).pop();
+        
+        // Najdeme historii vodoměru pro daného nájemníka
+        const mHistory = STATE.meters.filter(x => String(x.name).trim() === String(t.name).trim());
+        const lastEntry = mHistory[mHistory.length - 1];
 
         document.getElementById('f-rowidx').value = t.rowidx;
         document.getElementById('f-name').value = t.name || "";
@@ -155,25 +162,43 @@
         document.getElementById('f-pocetosob').value = t.pocetosob || 1;
         document.getElementById('f-platnostdo').value = t.platnostdo ? new Date(t.platnostdo).toISOString().split('T')[0] : "";
         
-        const startInput = document.getElementById('f-mStart');
-        if (m) {
-            startInput.value = m.end;
-            startInput.readOnly = true;
-            startInput.style.background = "#f8fafc";
+        const mContainer = document.getElementById('meter-container');
+        
+        if (!lastEntry) {
+            // NENÍ HISTORIE - ukázat pole pro zadání prvního stavu
+            mContainer.innerHTML = `
+                <label>Počáteční stav (při nastěhování)</label>
+                <input type="number" id="f-meterStart" placeholder="Zadejte výchozí stav">
+                <input type="hidden" id="f-meterEnd" value="">
+            `;
         } else {
-            startInput.value = 0;
-            startInput.readOnly = false;
-            startInput.style.background = "#ffffff";
+            // JE HISTORIE - ukázat poslední stav a pole pro nový
+            mContainer.innerHTML = `
+                <div class="grid" style="margin-bottom:0">
+                    <div>
+                        <label>Poslední odečet</label>
+                        <input type="number" id="f-meterStart" value="${lastEntry.koncovy}" readonly style="background:#e2e8f0">
+                    </div>
+                    <div>
+                        <label>Nový odečet</label>
+                        <input type="number" id="f-meterEnd" placeholder="Aktuální stav">
+                    </div>
+                </div>
+            `;
         }
         
-        document.getElementById('f-mEnd').value = "";
         document.getElementById('delBtn').style.display = 'block';
         document.getElementById('modal').style.display = 'flex';
     }
 
     function openModal() {
         document.getElementById('f-rowidx').value = "";
-        document.querySelectorAll('input').forEach(i => { i.value = ""; i.readOnly = false; i.style.background="#fff"; });
+        document.querySelectorAll('input').forEach(i => i.value = "");
+        document.getElementById('meter-container').innerHTML = `
+            <label>Počáteční stav vodoměru</label>
+            <input type="number" id="f-meterStart" placeholder="Zadejte stav">
+            <input type="hidden" id="f-meterEnd" value="">
+        `;
         document.getElementById('delBtn').style.display = 'none';
         document.getElementById('modal').style.display = 'flex';
     }
@@ -192,8 +217,8 @@
             telefon: document.getElementById('f-telefon').value,
             pocetosob: document.getElementById('f-pocetosob').value,
             platnostdo: document.getElementById('f-platnostdo').value,
-            meterStart: document.getElementById('f-mStart').value,
-            meterEnd: document.getElementById('f-mEnd').value
+            meterStart: document.getElementById('f-meterStart').value,
+            meterEnd: document.getElementById('f-meterEnd').value
         };
         await fetch(SCRIPT_URL, { method:'POST', mode:'no-cors', body: JSON.stringify({action:'saveTenant', payload:p}) });
         setTimeout(() => { closeModal(); loadData(); }, 1000);
