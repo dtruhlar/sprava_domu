@@ -359,4 +359,31 @@
 
                 <h3>2. Rozpis skutečných nákladů na služby</h3>
                 <table style="width:100%; border-collapse:collapse; margin-bottom:30px;">
-                    <tr style="background:#f8f
+                    <tr style="background:#f8f9fa;"><th style="border:1px solid #ddd; padding:10px; text-align:left;">Položka / Služba</th><th style="border:1px solid #ddd; padding:10px; text-align:right;">Cena</th></tr>
+                    ${nakladyHtml}
+                    <tr><td style="border:1px solid #ddd; padding:10px; font-weight:bold; text-align:right;">Skutečné náklady CELKEM:</td><td style="border:1px solid #ddd; padding:10px; text-align:right; font-weight:bold; color:#e74c3c;">- ${totNaklady} Kč</td></tr>
+                </table>
+
+                <h3>3. Finální vyrovnání služeb</h3>
+                <table style="width:100%; border-collapse:collapse;">
+                    <tr><td style="border:1px solid #ddd; padding:15px; font-size:1.2em;"><strong>VÝSLEDEK ZÚČTOVÁNÍ (Zálohy mínus Náklady)</strong></td>
+                    <td style="border:1px solid #ddd; padding:15px; text-align:right; font-size:1.2em; font-weight:bold; color:${vysledek>=0?'#27ae60':'#e74c3c'};">
+                        ${vysledek>=0?'PŘEPLATEK':'NEDOPLATEK'} ${Math.abs(vysledek)} Kč
+                    </td></tr>
+                </table>
+                <p style="font-size: 11px; color: #95a5a6; margin-top: 40px; text-align: center;">
+                    Vygenerováno dne: ${new Date().toLocaleDateString('cs-CZ')}
+                </p>
+            </div></body></html>`);
+        w.document.close();
+    }
+
+    function closeModal() { document.getElementById('modal').style.display = 'none'; }
+    function renderTenantView() {
+        const t = DATA.tenants.find(x => x.email.toLowerCase() === USER.email.toLowerCase());
+        document.getElementById('appHeader').innerText = "Vítejte, " + (t ? t.name : "Nájemníku");
+        document.getElementById('tView').innerHTML = t ? `<div style="background:white; padding:30px; border-radius:8px; border: 1px solid #eee;"><h3>Vaše jednotka: ${t.unit}</h3><p>Nájem: <b>${t.najem} Kč</b></p><p>Zálohy: <b>${t.zalohy || t.zaloha || 0} Kč</b></p><p>VS pro platby: <b>${t.vs || 'Není zadán'}</b></p></div>` : "";
+    }
+</script>
+</body>
+</html>
