@@ -1,61 +1,252 @@
 <!DOCTYPE html>
-<html>
+<html lang="cs">
 <head>
     <meta charset="utf-8">
-    <title>Správa nájmů - GitHub Edition</title>
-    </head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Property Manager Pro | GitHub</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2563eb; --primary-hover: #1d4ed8;
+            --danger: #ef4444; --success: #10b981;
+            --bg: #f8fafc; --card: #ffffff;
+            --text: #1e293b; --text-sub: #64748b;
+            --border: #e2e8f0; --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
+
+        /* --- HEADER --- */
+        .topbar {
+            background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px);
+            position: sticky; top: 0; z-index: 100;
+            padding: 15px 30px; border-bottom: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .logo { font-weight: 800; font-size: 1.2rem; color: var(--primary); letter-spacing: -0.5px; }
+
+        /* --- MAIN LAYOUT --- */
+        .container { max-width: 1100px; margin: 30px auto; padding: 0 20px; }
+        .card { background: var(--card); border-radius: 16px; border: 1px solid var(--border); box-shadow: var(--shadow); padding: 25px; margin-bottom: 25px; }
+        
+        /* --- TABLE --- */
+        .table-res { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th { text-align: left; padding: 12px; color: var(--text-sub); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 2px solid var(--border); }
+        td { padding: 16px 12px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+        tr:hover td { background: #f1f5f9; }
+
+        /* --- STATUS BADGES --- */
+        .badge { padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; }
+        .b-success { background: #dcfce7; color: #166534; }
+        .b-unpaid { background: #fee2e2; color: #991b1b; }
+
+        /* --- BUTTONS --- */
+        .btn { padding: 10px 18px; border-radius: 10px; border: 1px solid var(--border); cursor: pointer; font-weight: 600; font-size: 0.85rem; transition: all 0.2s; }
+        .btn-p { background: var(--primary); color: white; border: none; }
+        .btn-p:hover { background: var(--primary-hover); transform: translateY(-1px); }
+        .btn-danger { color: var(--danger); border-color: #fecaca; }
+        .btn-danger:hover { background: var(--danger); color: white; }
+
+        /* --- MODAL --- */
+        .modal { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center; }
+        .modal-content { background: white; padding: 30px; border-radius: 20px; width: 600px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1); }
+        
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+        label { display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-sub); margin-bottom: 5px; text-transform: uppercase; }
+        input { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 10px; font-family: inherit; font-size: 0.9rem; margin-bottom: 10px; }
+        input:focus { outline: none; border-color: var(--primary); ring: 2px solid #bfdbfe; }
+
+        #loader { position: fixed; top: 0; left: 0; width: 100%; height: 4px; background: #e2e8f0; z-index: 2000; display: none; }
+        #loader-fill { width: 30%; height: 100%; background: var(--primary); animation: loading 1.5s infinite linear; }
+        @keyframes loading { from { margin-left: -30%; } to { margin-left: 100%; } }
+    </style>
+</head>
 <body>
-    <script>
-        // !!! SEM VLOŽ URL, KTEROU JSI DOSTAL Z GOOGLE APPS SCRIPTU !!!
-        const API_URL = "https://script.google.com/macros/s/AKfycbzfm7aHYnfodOGT1BRlmtQexj67oMFPNCfgQlOn1WLyJbivwyrdghxKJlrgA8_pni6Y/exec";
 
-        let S = { tenants: [], payments: [] };
+<div id="loader"><div id="loader-fill"></div></div>
 
-        // Načtení dat (místo google.script.run)
-        async function load() {
-            try {
-                const response = await fetch(API_URL);
-                S = await response.json();
-                render(); // Tvá funkce pro vykreslení tabulky
-            } catch (err) {
-                console.error("Chyba při načítání dat:", err);
-            }
-        }
+<div class="topbar">
+    <div class="logo">REALTY<span style="font-weight:300">FLOW</span></div>
+    <button class="btn btn-p" onclick="openModal()">+ Přidat nájemníka</button>
+</div>
 
-        // Uložení dat (místo google.script.run)
-        async function save() {
-            const p = {
-                name: document.getElementById('f-name').value,
-                // ... další pole
-            };
+<div class="container">
+    <div class="card">
+        <h2 style="margin-bottom: 20px;">Aktivní nájemníci</h2>
+        <div class="table-res">
+            <table id="mainTable">
+                <thead>
+                    <tr>
+                        <th>Nájemník</th>
+                        <th>Jednotka</th>
+                        <th>Měsíčně</th>
+                        <th>Platnost do</th>
+                        <th>Stav</th>
+                        <th>Akce</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 
-            await fetch(API_URL, {
-                method: 'POST',
-                mode: 'no-cors', // Důležité pro Google Apps Script
-                body: JSON.stringify({
-                    action: 'saveTenant',
-                    payload: p
-                })
-            });
+<div id="modal" class="modal">
+    <div class="modal-content">
+        <h2 id="mTitle" style="margin-bottom: 20px;">Karta nájemníka</h2>
+        <input type="hidden" id="f-rowidx">
+        
+        <label>Celé jméno</label>
+        <input type="text" id="f-name">
+
+        <div class="grid">
+            <div><label>Jednotka</label><input type="text" id="f-unit"></div>
+            <div><label>Počet osob</label><input type="number" id="f-pocetosob"></div>
+        </div>
+
+        <div class="grid">
+            <div><label>Nájemné (Kč)</label><input type="number" id="f-najem"></div>
+            <div><label>Zálohy (Kč)</label><input type="number" id="f-zalohy"></div>
+        </div>
+
+        <div class="grid">
+            <div><label>Telefon</label><input type="text" id="f-telefon"></div>
+            <div><label>Email</label><input type="email" id="f-email"></div>
+        </div>
+
+        <label>Platnost smlouvy do</label>
+        <input type="date" id="f-platnostdo">
+
+        <hr style="margin: 20px 0; border: 0; border-top: 1px solid var(--border);">
+        
+        <h3 style="margin-bottom: 15px;">Vodoměr (Odečet)</h3>
+        <div class="grid">
+            <div><label>Počáteční stav</label><input type="number" id="f-mStart" readonly style="background: #f8fafc;"></div>
+            <div><label>Nový koncový stav</label><input type="number" id="f-mEnd" placeholder="Zadejte aktuální stav"></div>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 25px;">
+            <button class="btn btn-p" style="flex: 2" onclick="handleSave()">Uložit vše</button>
+            <button id="delBtn" class="btn btn-danger" style="flex: 1; display:none" onclick="handleDelete()">Smazat</button>
+            <button class="btn" style="flex: 1" onclick="closeModal()">Zrušit</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // !!! SEM VLOŽ URL Z GOOGLE APPS SCRIPTU (NASADIT -> WEB APP) !!!
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzfm7aHYnfodOGT1BRlmtQexj67oMFPNCfgQlOn1WLyJbivwyrdghxKJlrgA8_pni6Y/exec";
+
+    let STATE = { tenants: [], payments: [], meters: [] };
+
+    window.onload = loadData;
+
+    async function loadData() {
+        toggleLoader(true);
+        try {
+            const resp = await fetch(SCRIPT_URL);
+            STATE = await resp.json();
+            renderTable();
+        } catch (e) { alert("Chyba při načítání dat. Zkontrolujte URL skriptu."); }
+        toggleLoader(false);
+    }
+
+    function renderTable() {
+        const tbody = document.querySelector('#mainTable tbody');
+        tbody.innerHTML = STATE.tenants.map(t => {
+            const isPaid = STATE.payments.some(p => p.name === t.name && p.status === 'OK');
+            const platnost = t.platnostdo ? new Date(t.platnostdo).toLocaleDateString('cs-CZ') : '-';
             
-            setTimeout(load, 1000); // Počkáme sekundu a refreshneme
-            closeM();
-        }
+            return `
+                <tr>
+                    <td><b>${t.name}</b><br><small style="color:var(--text-sub)">${t.email || ''}</small></td>
+                    <td><span style="background:#f1f5f9; padding:4px 8px; border-radius:6px">${t.unit}</span></td>
+                    <td><b>${(Number(t.najem) + Number(t.zalohy)).toLocaleString()} Kč</b></td>
+                    <td>${platnost}</td>
+                    <td>
+                        <span class="badge ${isPaid ? 'b-success' : 'b-unpaid'}">
+                            ${isPaid ? '● Uhrazeno' : '○ Čeká'}
+                        </span>
+                    </td>
+                    <td><button class="btn" onclick="openEdit(${t.rowidx})">Otevřít kartu</button></td>
+                </tr>
+            `;
+        }).join('');
+    }
 
-        // Smazání
-        async function del(rowidx) {
-            await fetch(API_URL, {
-                method: 'POST',
-                mode: 'no-cors',
-                body: JSON.stringify({
-                    action: 'deleteTenant',
-                    rowidx: rowidx
-                })
-            });
-            setTimeout(load, 1000);
-        }
+    function openEdit(rowidx) {
+        const t = STATE.tenants.find(x => x.rowidx == rowidx);
+        const lastMeter = STATE.meters.filter(m => m.name === t.name).pop();
 
-        window.onload = load;
-    </script>
+        document.getElementById('mTitle').innerText = "Karta: " + t.name;
+        document.getElementById('f-rowidx').value = t.rowidx;
+        document.getElementById('f-name').value = t.name;
+        document.getElementById('f-unit').value = t.unit;
+        document.getElementById('f-najem').value = t.najem;
+        document.getElementById('f-zalohy').value = t.zalohy;
+        document.getElementById('f-email').value = t.email;
+        document.getElementById('f-telefon').value = t.telefon;
+        document.getElementById('f-pocetosob').value = t.pocetosob;
+        document.getElementById('f-platnostdo').value = t.platnostdo ? new Date(t.platnostdo).toISOString().split('T')[0] : "";
+        
+        // Vodoměr logika
+        document.getElementById('f-mStart').value = lastMeter ? lastMeter.end : 0;
+        document.getElementById('f-mEnd').value = "";
+
+        document.getElementById('delBtn').style.display = 'block';
+        document.getElementById('modal').style.display = 'flex';
+    }
+
+    function openModal() {
+        document.getElementById('mTitle').innerText = "Nový nájemník";
+        document.getElementById('f-rowidx').value = "";
+        document.querySelectorAll('input').forEach(i => i.value = "");
+        document.getElementById('delBtn').style.display = 'none';
+        document.getElementById('modal').style.display = 'flex';
+    }
+
+    function closeModal() { document.getElementById('modal').style.display = 'none'; }
+
+    async function handleSave() {
+        toggleLoader(true);
+        const payload = {
+            rowidx: document.getElementById('f-rowidx').value,
+            name: document.getElementById('f-name').value,
+            unit: document.getElementById('f-unit').value,
+            najem: document.getElementById('f-najem').value,
+            zalohy: document.getElementById('f-zalohy').value,
+            email: document.getElementById('f-email').value,
+            telefon: document.getElementById('f-telefon').value,
+            pocetosob: document.getElementById('f-pocetosob').value,
+            platnostdo: document.getElementById('f-platnostdo').value,
+            meterEnd: document.getElementById('f-mEnd').value // Extra pro vodoměr
+        };
+
+        await fetch(SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            body: JSON.stringify({ action: 'saveTenant', payload: payload })
+        });
+
+        setTimeout(() => { closeModal(); loadData(); }, 1200);
+    }
+
+    async function handleDelete() {
+        if (!confirm("Opravdu smazat nájemníka i s historií?")) return;
+        toggleLoader(true);
+        await fetch(SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            body: JSON.stringify({ action: 'deleteTenant', rowidx: document.getElementById('f-rowidx').value })
+        });
+        setTimeout(() => { closeModal(); loadData(); }, 1200);
+    }
+
+    function toggleLoader(show) { document.getElementById('loader').style.display = show ? 'block' : 'none'; }
+</script>
+
 </body>
 </html>
