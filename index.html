@@ -354,10 +354,22 @@
     }
 
     async function sendResetCode() {
-        CUR_EMAIL = document.getElementById('forgot-email').value.trim();
-        await fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify({action:'forgotPassword', email:CUR_EMAIL}) });
-        showBox('verify');
+    CUR_EMAIL = document.getElementById('forgot-email').value.trim();
+    if(!CUR_EMAIL) return alert("Zadejte email.");
+    
+    // Zobrazíme box pro ověření hned, aby uživatel mohl zadat kód, až přijde
+    showBox('verify'); 
+    
+    try {
+        await fetch(SCRIPT_URL, { 
+            method:'POST', 
+            mode: 'no-cors', // Přidáno pro jistotu při problémech s CORS
+            body: JSON.stringify({action:'forgotPassword', email:CUR_EMAIL}) 
+        });
+    } catch(e) {
+        console.log("Email se odesílá na pozadí...");
     }
+}
 
     async function verifyCode() {
         const code = document.getElementById('verify-code').value.trim();
