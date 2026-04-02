@@ -696,7 +696,11 @@
     // 3. Elektřina
     if (podil.ele > 0 && isChecked('ele')) {
         tabulkaHtml += `<tr>
-            <td><b>Společná elektřina</b><br><small>Sazba: ${sc.ele.sazba} Kč/kWh</small></td>
+            <td>
+                <b>Společná elektřina</b><br>
+                <small>Sazba: ${Number(sc.ele.sazba).toFixed(2)} Kč/kWh</small><br>
+                <small>Dle osob: ${t.pocetosob || 0}</small>
+            </td>
             <td style="text-align:right">${Number(sc.ele.cenaCelkem).toFixed(2)} Kč</td>
             <td style="text-align:right"><b>${podil.ele.toFixed(2)} Kč</b></td>
         </tr>`;
@@ -726,7 +730,7 @@
     // 6. Úklid
     if (podil.uklid > 0 && isChecked('uklid')) {
         tabulkaHtml += `<tr>
-            <td><b>Úklid společných prostor</b></td>
+            <td><b>Úklid společných prostor</b><br><small>Dle osob: ${t.pocetosob}</small></td>
             <td style="text-align:right">${Number(sc.uklid.cena).toFixed(2)} Kč</td>
             <td style="text-align:right"><b>${podil.uklid.toFixed(2)} Kč</b></td>
         </tr>`;
