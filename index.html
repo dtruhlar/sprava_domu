@@ -659,172 +659,184 @@
     const t = DATA.tenants.find(x => x.name == name);
     if(!t) { alert("Nájemník nebyl v databázi nalezen. Ujistěte se, že je karta uložena."); return; }
 
-    // Výpočty shares a podílů
     const shares = calculateTenantShares(rok);
     const podil = shares ? shares[name] : {celkem:0, voda:0, srazky:0, ele:0, odpady:0, uklid:0};
     const saved = (DATA.sharedCosts || []).find(s => s.year == rok);
     const sc = saved ? JSON.parse(saved.data) : null;
 
-    // --- SEKCE A: ÚDAJE O ODBĚRNÉM MÍSTĚ (NÁKLADY DOMU) ---
-    let celkoveNakladyHtml = "";
-    if(sc) {
-        if(podil.voda > 0) celkoveNakladyHtml += `<tr><td>Vodné a stočné (celý objekt)</td><td style="text-align:right">${Number(sc.voda.cena).toFixed(2)} Kč</td><td style="text-align:right">${sc.voda.m3} m³</td></tr>`;
-        if(podil.srazky > 0) celkoveNakladyHtml += `<tr><td>Srážkovné (celý objekt)</td><td style="text-align:right">${Number(sc.srazky.cena).toFixed(2)} Kč</td><td style="text-align:right">-</td></tr>`;
-        if(podil.ele > 0) celkoveNakladyHtml += `<tr><td>Společná elektřina (celý objekt)</td><td style="text-align:right">${Number(sc.ele.cenaCelkem).toFixed(2)} Kč</td><td style="text-align:right">${sc.ele.sazba} Kč/kWh</td></tr>`;
-        if(podil.odpady > 0) {
-            let odpadySuma = Number(sc.odpadyCP.cena || 0) + Number(sc.odpadyAVE.cena || 0);
-            celkoveNakladyHtml += `<tr><td>Odpady celkem (CP + AVE)</td><td style="text-align:right">${odpadySuma.toFixed(2)} Kč</td><td style="text-align:right">-</td></tr>`;
-        }
-        if(podil.uklid > 0) celkoveNakladyHtml += `<tr><td>Úklid společných prostor</td><td style="text-align:right">${Number(sc.uklid.cena).toFixed(2)} Kč</td><td style="text-align:right">-</td></tr>`;
+    // Pomocná funkce pro zjištění, zda je nájemník zaškrtnut v dané službě
+    const isChecked = (service) => sc && sc[service] && sc[service].tenants && sc[service].tenants.includes(name);
+
+    // --- GENEROVÁNÍ HLAVNÍ TABULKY (VODOROVNĚ) ---
+    let tabulkaHtml = "";
+
+    // 1. Voda
+    if (podil.voda > 0) {
+        const mHist = (DATA.meters || []).filter(x => String(x.name || "").toLowerCase() === String(name).toLowerCase() && x.year == rok);
+        const mStart = mHist.length > 0 ? mHist[0].pocatecni : "?";
+        const mEnd = mHist.length > 0 ? mHist[mHist.length-1].koncovy : "?";
+        const mSpotreba = mHist.reduce((sum, x) => sum + Number(x.spotreba || 0), 0);
+        
+        tabulkaHtml += `<tr>
+            <td><b>Vodné a stočné</b><br><small>Vodoměr: ${mStart} -> ${mEnd} m³</small></td>
+            <td style="text-align:right">${Number(sc.voda.cena).toFixed(2)} Kč / ${sc.voda.m3} m³</td>
+            <td style="text-align:right"><b>${podil.voda.toFixed(2)} Kč</b><br><small>(${mSpotreba} m³)</small></td>
+        </tr>`;
     }
 
-    // --- SEKCE B: ÚDAJE O UŽIVATELI (NÁKLADY JEDNOTKY + VODOMĚR) ---
-    const mHist = (DATA.meters || []).filter(x => String(x.name || "").toLowerCase() === String(name).toLowerCase() && x.year == rok);
-    const mStart = mHist.length > 0 ? mHist[0].pocatecni : "?";
-    const mEnd = mHist.length > 0 ? mHist[mHist.length-1].koncovy : "?";
-    const mSpotreba = mHist.reduce((sum, x) => sum + Number(x.spotreba || 0), 0);
+    // 2. Srážkovné
+    if (podil.srazky > 0 && isChecked('srazky')) {
+        tabulkaHtml += `<tr>
+            <td><b>Srážkovné</b><br><small>Plocha jednotky: ${t.plocha} m²</small></td>
+            <td style="text-align:right">${Number(sc.srazky.cena).toFixed(2)} Kč</td>
+            <td style="text-align:right"><b>${podil.srazky.toFixed(2)} Kč</b></td>
+        </tr>`;
+    }
 
-    let uzivatelNakladyHtml = "";
-    if(podil.voda > 0) uzivatelNakladyHtml += `<tr><td>Vodné a stočné <br><small style="color:#666">Vodoměr: ${mStart} m³ (původní) -> ${mEnd} m³ (nový) = <b>${mSpotreba} m³</b></small></td><td style="text-align:right">${podil.voda.toFixed(2)} Kč</td></tr>`;
-    if(podil.srazky > 0) uzivatelNakladyHtml += `<tr><td>Srážkovné (podíl dle plochy ${t.plocha} m²)</td><td style="text-align:right">${podil.srazky.toFixed(2)} Kč</td></tr>`;
-    if(podil.ele > 0) uzivatelNakladyHtml += `<tr><td>Společná elektřina (rovným dílem)</td><td style="text-align:right">${podil.ele.toFixed(2)} Kč</td></tr>`;
-    if(podil.odpady > 0) uzivatelNakladyHtml += `<tr><td>Odpady (podíl)</td><td style="text-align:right">${podil.odpady.toFixed(2)} Kč</td></tr>`;
-    if(podil.uklid > 0) uzivatelNakladyHtml += `<tr><td>Úklid společných prostor (podíl)</td><td style="text-align:right">${podil.uklid.toFixed(2)} Kč</td></tr>`;
+    // 3. Elektřina
+    if (podil.ele > 0 && isChecked('ele')) {
+        tabulkaHtml += `<tr>
+            <td><b>Společná elektřina</b><br><small>Sazba: ${sc.ele.sazba} Kč/kWh</small></td>
+            <td style="text-align:right">${Number(sc.ele.cenaCelkem).toFixed(2)} Kč</td>
+            <td style="text-align:right"><b>${podil.ele.toFixed(2)} Kč</b></td>
+        </tr>`;
+    }
 
-    // Mimořádné náklady
+    // 4. Odpady (Čistá Plzeň) - jen pokud je zaškrtnut
+    if (isChecked('odpadyCP')) {
+        const cpPodil = podil.odpadyCP || 0; // Předpokládá výpočet v calculateTenantShares
+        // Pokud calculateTenantShares sčítá odpady do jedné položky 'odpady', použijeme podíl vypočtený tam, ale jen pokud je v seznamu
+        const odpadyCastka = (sc.odpadyCP.cena / sc.odpadyCP.tenants.length); // Zjednodušený náhled pro tabulku, pokud je rovným dílem
+        tabulkaHtml += `<tr>
+            <td><b>Odpady (Čistá Plzeň)</b><br><small>Dle osob: ${t.pocetosob}</small></td>
+            <td style="text-align:right">${Number(sc.odpadyCP.cena).toFixed(2)} Kč</td>
+            <td style="text-align:right"><b>${(podil.odpady_cp_vypocet || (Number(sc.odpadyCP.cena)/sc.odpadyCP.tenants.length)).toFixed(2)} Kč</b></td>
+        </tr>`;
+    }
+
+    // 5. Odpady (AVE) - jen pokud je zaškrtnut
+    if (isChecked('odpadyAVE')) {
+        tabulkaHtml += `<tr>
+            <td><b>Odpady (AVE)</b><br><small>Komerční provoz</small></td>
+            <td style="text-align:right">${Number(sc.odpadyAVE.cena).toFixed(2)} Kč</td>
+            <td style="text-align:right"><b>${(Number(sc.odpadyAVE.cena)/sc.odpadyAVE.tenants.length).toFixed(2)} Kč</b></td>
+        </tr>`;
+    }
+
+    // 6. Úklid
+    if (podil.uklid > 0 && isChecked('uklid')) {
+        tabulkaHtml += `<tr>
+            <td><b>Úklid společných prostor</b></td>
+            <td style="text-align:right">${Number(sc.uklid.cena).toFixed(2)} Kč</td>
+            <td style="text-align:right"><b>${podil.uklid.toFixed(2)} Kč</b></td>
+        </tr>`;
+    }
+
+    // Mimořádné náklady (vždy jen na jednotku)
     const costs = (DATA.costs || []).filter(c => c.name == name && c.year == rok);
     const indNaklady = costs.reduce((s, c) => s + Number(c.price || 0), 0);
     costs.forEach(c => {
-        uzivatelNakladyHtml += `<tr style="color:#2980b9"><td>${c.desc || 'Mimořádný náklad'} (${c.date || ''})</td><td style="text-align:right">${Number(c.price).toFixed(2)} Kč</td></tr>`;
+        tabulkaHtml += `<tr style="color:#2980b9">
+            <td><b>Mimořádný náklad / Oprava</b><br><small>${c.desc}</small></td>
+            <td style="text-align:right">-</td>
+            <td style="text-align:right"><b>${Number(c.price).toFixed(2)} Kč</b></td>
+        </tr>`;
     });
 
-    // Výpočty bilance
+    // Bilance
     const tZaloha = Number(t.zalohy || t.zaloha || 0);
     const tNajem = Number(t.najem || 0);
     const platbyRoku = (DATA.payments || []).filter(p => String(p.name || "").trim().toLowerCase() === String(name).toLowerCase() && p.year == rok);
     const celkemZaplaceno = platbyRoku.reduce((sum, p) => sum + Number(p.amount || 0), 0);
     let pocetMesicu = (tZaloha + tNajem) > 0 ? Math.floor(celkemZaplaceno / (tZaloha + tNajem)) : 0;
-    
     const celkemVybranoNaZalohach = pocetMesicu * tZaloha;
     const celkNaklady = indNaklady + podil.celkem;
     const vysledek = celkemVybranoNaZalohach - celkNaklady;
 
-    const icoHtml = t.typ === 'komerce' && t.ico ? `<br>IČO: ${t.ico}` : '';
-
-    // QR kód
     let qrHtml = "";
     if (vysledek < 0) {
         const dluznaCastka = Math.abs(vysledek);
         const cistaJednotka = String(t.unit || "").replace(/\D/g, "");
         const specVs = rok.toString() + (cistaJednotka.padStart(2, '0'));
         const qrUrl = `https://api.paylibo.com/paylibo/generator/czech/image?accountNumber=2402266265&bankCode=2010&amount=${dluznaCastka.toFixed(2)}&vs=${specVs}&currency=CZK&message=Nedoplatek+${rok}`;
-        qrHtml = `
-            <div style="text-align:center; margin-top:20px; padding:15px; background:#fdf2f2; border:1px solid #f8d7da; border-radius:8px; display:inline-block;">
-                <h4 style="margin:0 0 10px 0; color:#c53030;">Úhrada nedoplatku</h4>
-                <img src="${qrUrl}" alt="QR platba" style="width:150px; height:150px; background:#fff; padding:5px; border:1px solid #ccc;">
-                <p style="margin:10px 0 0 0; font-size:14px;"><b>Účet:</b> 2402266265/2010<br><b>VS:</b> ${specVs}<br><b>Částka:</b> ${dluznaCastka.toFixed(2)} Kč</p>
-            </div>`;
+        qrHtml = `<div style="text-align:center; margin-top:20px; padding:15px; background:#fdf2f2; border:1px solid #f8d7da; border-radius:8px; display:inline-block;"><h4 style="margin:0 0 10px 0; color:#c53030;">Úhrada nedoplatku</h4><img src="${qrUrl}" width="150"><p style="margin:10px 0 0 0;"><b>Účet:</b> 2402266265/2010 | <b>VS:</b> ${specVs} | <b>Částka:</b> ${dluznaCastka.toFixed(2)} Kč</p></div>`;
     }
 
     const w = window.open("", "_blank");
-    w.document.write(`<html>
-        <head>
-            <title>Zúčtování ${rok} - ${t.name}</title>
-            <style>
-                body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; color: #333; line-height: 1.5; }
-                .no-print { text-align: center; margin-bottom: 30px; }
-                .akce-btn { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color: white; margin: 0 5px; }
-                #obsahZuctovani { max-width: 800px; margin: auto; border: 1px solid #ddd; padding: 40px; background: white; }
-                .header-flex { display: flex; justify-content: space-between; margin-bottom: 30px; }
-                .section-title { background: #f8f9fa; padding: 8px 12px; font-weight: bold; border-left: 4px solid #3498db; margin: 25px 0 15px 0; text-transform: uppercase; font-size: 14px; }
-                table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
-                th { text-align: left; padding: 10px; border-bottom: 2px solid #eee; font-size: 13px; color: #666; }
-                td { padding: 10px; border-bottom: 1px solid #f4f4f4; font-size: 14px; }
-                .total-row { font-weight: bold; background: #fcfcfc; }
-                .result-box { margin-top: 30px; padding: 20px; text-align: center; border: 2px solid #333; border-radius: 8px; font-size: 18px; }
-                @media print { .no-print { display: none !important; } body { padding: 0; } #obsahZuctovani { border: none; } }
-            </style>
-        </head>
-        <body>
-            <div class="no-print">
-                <button class="akce-btn" style="background:#3498db" onclick="window.print()">🖨️ Vytisknout</button>
-                <button class="akce-btn" style="background:#27ae60" id="btnEmail" onclick="odeslatEmailem()">✉️ Odeslat e-mailem</button>
-                <button class="akce-btn" style="background:#e67e22" id="btnSave" onclick="ulozitDoPortalu()">💾 Uložit do portálu</button>
+    w.document.write(`<html><head><style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; color: #333; line-height: 1.5; }
+        .no-print { text-align: center; margin-bottom: 30px; }
+        .akce-btn { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color: white; margin: 0 5px; }
+        #obsahZuctovani { max-width: 850px; margin: auto; border: 1px solid #ddd; padding: 40px; background: white; }
+        .header-flex { display: flex; justify-content: space-between; margin-bottom: 30px; }
+        .section-title { background: #f8f9fa; padding: 8px 12px; font-weight: bold; border-left: 4px solid #3498db; margin: 25px 0 15px 0; text-transform: uppercase; font-size: 13px; }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 10px; border-bottom: 2px solid #3498db; font-size: 12px; color: #3498db; background: #f0f7ff; }
+        td { padding: 12px 10px; border-bottom: 1px solid #eee; font-size: 14px; }
+        .total-row { font-weight: bold; background: #f8f9fa; }
+        .result-box { margin-top: 30px; padding: 20px; text-align: center; border: 2px solid #333; border-radius: 8px; font-size: 18px; }
+        @media print { .no-print { display: none !important; } #obsahZuctovani { border: none; } }
+    </style></head><body>
+        <div class="no-print">
+            <button class="akce-btn" style="background:#3498db" onclick="window.print()">🖨️ Vytisknout</button>
+            <button class="akce-btn" style="background:#27ae60" id="btnEmail" onclick="odeslatEmailem()">✉️ Odeslat e-mailem</button>
+            <button class="akce-btn" style="background:#e67e22" id="btnSave" onclick="ulozitDoPortalu()">💾 Uložit do portálu</button>
+        </div>
+        <div id="obsahZuctovani">
+            <h1 style="text-align:center; margin-top:0;">VYÚČTOVÁNÍ SLUŽEB ${rok}</h1>
+            <div class="header-flex">
+                <div><b>Poskytovatel:</b><br>AMK TRABANT PLZEŇ z.s.<br>Úslavská 339/2, Plzeň</div>
+                <div style="text-align:right;"><b>Příjemce (jednotka ${t.unit}):</b><br>${t.name}<br>${t.street || ''} ${t.city || ''}</div>
             </div>
-
-            <div id="obsahZuctovani">
-                <h1 style="text-align:center; margin-top:0;">ROČNÍ ZÚČTOVÁNÍ SLUŽEB ${rok}</h1>
-                
-                <div class="header-flex">
-                    <div><b>Poskytovatel:</b><br>AMK TRABANT PLZEŇ z.s.<br>IČ: 45333637<br>Úslavská 339/2, 326 00 Plzeň</div>
-                    <div style="text-align:right;"><b>Příjemce (jednotka ${t.unit}):</b><br>${t.name}${icoHtml}<br>${t.street || ''}<br>${t.zip || ''} ${t.city || ''}</div>
-                </div>
-
-                <div class="section-title">A. ÚDAJE O ODBĚRNÉM MÍSTĚ (CELKOVÉ NÁKLADY OBJEKTU)</div>
-                <table>
-                    <thead><tr><th>Druh služby</th><th style="text-align:right">Cena celkem (DPH vč.)</th><th style="text-align:right">Rozsah/Sazba</th></tr></thead>
-                    <tbody>${celkoveNakladyHtml}</tbody>
-                </table>
-
-                <div class="section-title">B. ÚDAJE O UŽIVATELI (ROZPIS NÁKLADŮ NA JEDNOTKU)</div>
-                <table>
-                    <thead><tr><th>Popis položky / Výpočet podílu</th><th style="text-align:right">Částka</th></tr></thead>
-                    <tbody>
-                        ${uzivatelNakladyHtml}
-                        <tr class="total-row"><td>NÁKLADY CELKEM (B)</td><td style="text-align:right">${celkNaklady.toFixed(2)} Kč</td></tr>
-                    </tbody>
-                </table>
-
-                <div class="section-title">C. BILANCE A VÝSLEDEK ZÚČTOVÁNÍ</div>
-                <table style="margin-bottom:0;">
-                    <tr><td>Uhrazené zálohy na služby (${pocetMesicu} měsíců x ${tZaloha} Kč)</td><td style="text-align:right; color:green;">+ ${celkemVybranoNaZalohach.toFixed(2)} Kč</td></tr>
-                    <tr><td>Skutečné náklady na služby za rok ${rok} (B)</td><td style="text-align:right; color:red;">- ${celkNaklady.toFixed(2)} Kč</td></tr>
-                </table>
-
-                <div class="result-box" style="border-color: ${vysledek >= 0 ? '#27ae60' : '#e74c3c'}; background: ${vysledek >= 0 ? '#f0fff4' : '#fff5f5'};">
-                    VÝSLEDEK: <span style="color:${vysledek >= 0 ? '#27ae60' : '#e74c3c'}"><b>${vysledek >= 0 ? 'PŘEPLATEK' : 'NEDOPLATEK'} ${Math.abs(vysledek).toFixed(2)} Kč</b></span>
-                </div>
-
-                <div style="text-align:center;">${qrHtml}</div>
-                
-                <p style="font-size:11px; color:#888; margin-top:40px; border-top:1px solid #eee; padding-top:10px;">
-                    Vyúčtování bylo generováno automaticky systémem Správa AMK dne ${new Date().toLocaleDateString('cs-CZ')}.
-                </p>
+            <div class="section-title">PODROBNÝ ROZPIS NÁKLADŮ</div>
+            <table>
+                <thead><tr><th>DRUH SLUŽBY / NÁKLADU</th><th style="text-align:right">CELÝ OBJEKT (INFO)</th><th style="text-align:right">NÁKLAD JEDNOTKY (B)</th></tr></thead>
+                <tbody>
+                    ${tabulkaHtml}
+                    <tr class="total-row"><td>NÁKLADY CELKEM ZA ROK ${rok}</td><td>-</td><td style="text-align:right">${celkNaklady.toFixed(2)} Kč</td></tr>
+                </tbody>
+            </table>
+            <div class="section-title">VÝSLEDEK HOSPODAŘENÍ</div>
+            <table>
+                <tr><td>Uhrazené zálohy na služby (${pocetMesicu} měs. x ${tZaloha} Kč)</td><td style="text-align:right; color:green;">+ ${celkemVybranoNaZalohach.toFixed(2)} Kč</td></tr>
+                <tr><td>Skutečné náklady jednotky (B)</td><td style="text-align:right; color:red;">- ${celkNaklady.toFixed(2)} Kč</td></tr>
+            </table>
+            <div class="result-box" style="border-color: ${vysledek >= 0 ? '#27ae60' : '#e74c3c'}; background: ${vysledek >= 0 ? '#f0fff4' : '#fff5f5'};">
+                VÝSLEDEK: <span style="color:${vysledek >= 0 ? '#27ae60' : '#e74c3c'}"><b>${vysledek >= 0 ? 'PŘEPLATEK' : 'NEDOPLATEK'} ${Math.abs(vysledek).toFixed(2)} Kč</b></span>
             </div>
-
-            <script>
-                async function odeslatEmailem() {
-                    const btn = document.getElementById('btnEmail');
-                    btn.innerText = "Odesílám..."; btn.disabled = true;
-                    const htmlObsah = document.getElementById('obsahZuctovani').outerHTML;
-                    try {
-                        const resp = await fetch("${SCRIPT_URL}", {
-                            method: "POST",
-                            body: JSON.stringify({ action: 'sendSettlementEmail', email: "${t.email}", subject: "Vyúčtování ${rok} - ${t.name}", body: htmlObsah })
-                        });
-                        const res = await resp.json();
-                        if(res.success) { btn.innerText = "✓ Odesláno"; btn.style.background = "#27ae60"; }
-                        else { alert("Chyba."); btn.disabled = false; }
-                    } catch(e) { alert("Chyba spojení."); btn.disabled = false; }
-                }
-
-                async function ulozitDoPortalu() {
-                    const btn = document.getElementById('btnSave');
-                    btn.innerText = "Ukládám..."; btn.disabled = true;
-                    const htmlObsah = document.getElementById('obsahZuctovani').outerHTML;
-                    try {
-                        const resp = await fetch("${SCRIPT_URL}", {
-                            method: "POST",
-                            body: JSON.stringify({ action: 'saveSettlement', name: "${t.name}", year: ${rok}, date: "${new Date().toLocaleDateString('cs-CZ')}", html: htmlObsah })
-                        });
-                        const res = await resp.json();
-                        if(res.success) { btn.innerText = "✓ Uloženo"; btn.style.background = "#27ae60"; }
-                        else { alert("Chyba."); btn.disabled = false; }
-                    } catch(e) { alert("Chyba spojení."); btn.disabled = false; }
-                }
-            <\/script>
-        </body>
-    </html>`);
+            <div style="text-align:center;">${qrHtml}</div>
+        </div>
+        <script>
+            async function odeslatEmailem() {
+                const btn = document.getElementById('btnEmail');
+                btn.innerText = "Odesílám..."; btn.disabled = true;
+                const htmlObsah = document.getElementById('obsahZuctovani').outerHTML;
+                try {
+                    const resp = await fetch("${SCRIPT_URL}", {
+                        method: "POST",
+                        body: JSON.stringify({ action: 'sendSettlementEmail', email: "${t.email}", subject: "Vyúčtování ${rok} - ${t.name}", body: htmlObsah })
+                    });
+                    const res = await resp.json();
+                    if(res.success) { btn.innerText = "✓ Odesláno"; btn.style.background = "#27ae60"; }
+                    else { alert("Chyba."); btn.disabled = false; }
+                } catch(e) { alert("Chyba spojení."); btn.disabled = false; }
+            }
+            async function ulozitDoPortalu() {
+                const btn = document.getElementById('btnSave');
+                btn.innerText = "Ukládám..."; btn.disabled = true;
+                const htmlObsah = document.getElementById('obsahZuctovani').outerHTML;
+                try {
+                    const resp = await fetch("${SCRIPT_URL}", {
+                        method: "POST",
+                        body: JSON.stringify({ action: 'saveSettlement', name: "${t.name}", year: ${rok}, date: "${new Date().toLocaleDateString('cs-CZ')}", html: htmlObsah })
+                    });
+                    const res = await resp.json();
+                    if(res.success) { btn.innerText = "✓ Uloženo"; btn.style.background = "#27ae60"; }
+                    else { alert("Chyba."); btn.disabled = false; }
+                } catch(e) { alert("Chyba spojení."); btn.disabled = false; }
+            }
+        <\/script>
+    </body></html>`);
     w.document.close();
 }
     
