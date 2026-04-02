@@ -385,21 +385,43 @@
     }
 
     function renderAdminTable() {
-        const curM = new Date().getMonth() + 1; const curY = new Date().getFullYear();
-        document.getElementById('tBody').innerHTML = (DATA.tenants || []).map(t => {
-            let dluzneMesice = [];
-            let zalohaCislo = Number(t.zalohy || t.zaloha || t.mesicnizalohy || 0); let najemCislo = Number(t.najem || 0);
-            let ocekavanoCelkem = najemCislo + zalohaCislo;
+    const curM = new Date().getMonth() + 1;
+    const curY = new Date().getFullYear();
+    const tBody = document.getElementById('tBody');
+    
+    // Optimalizace: Předpřipravíme si sumy plateb, abychom je nehledali v cyklu
+    const paymentMap = {};
+    (DATA.payments || []).forEach(p => {
+        if (p.year == curY) {
+            const key = `${String(p.name || "").trim().toLowerCase()}_${p.month}`;
+            paymentMap[key] = (paymentMap[key] || 0) + Number(p.amount || 0);
+        }
+    });
 
+    tBody.innerHTML = (DATA.tenants || []).map(t => {
+        let dluzneMesice = [];
+        const tNameKey = String(t.name || "").trim().toLowerCase();
+        const ocekavanoCelkem = Number(t.najem || 0) + Number(t.zalohy || t.zaloha || 0);
+
+        if (ocekavanoCelkem > 0) {
             for(let m = 1; m <= curM; m++) {
-                // Bezpečné volání toLowerCase() s ošetřením prázdných hodnot
-                let zaplacenoVMesici = (DATA.payments || []).filter(p => String(p.name || "").trim().toLowerCase() === String(t.name || "").trim().toLowerCase() && p.year == curY && p.month == m).reduce((sum, p) => sum + Number(p.amount || 0), 0);
-                if(ocekavanoCelkem > 0 && zaplacenoVMesici < ocekavanoCelkem) dluzneMesice.push(mesiceNázvy[m]);
+                const zaplaceno = paymentMap[`${tNameKey}_${m}`] || 0;
+                if(zaplaceno < ocekavanoCelkem) dluzneMesice.push(mesiceNázvy[m]);
             }
-            let badgesHtml = dluzneMesice.length === 0 ? `<span class="badge b-ok">✓ OK</span>` : dluzneMesice.map(m => `<span class="badge b-wait">❌ ${m}</span>`).join('');
-            return `<tr><td><strong>${t.name || 'Nepojmenováno'}</strong><br><span style="font-size:11px; color:#7f8c8d">${t.typ === 'komerce' ? 'Komerce' : 'Byt'} | ${t.email || 'Bez e-mailu'}</span></td><td>${t.unit || '-'}</td><td>${badgesHtml}</td><td><button class="btn btn-blue" onclick="openEdit(${t.rowidx})">Karta</button></td></tr>`;
-        }).join('');
-    }
+        }
+        
+        const badgesHtml = dluzneMesice.length === 0 
+            ? `<span class="badge b-ok">✓ OK</span>` 
+            : dluzneMesice.map(m => `<span class="badge b-wait">❌ ${m}</span>`).join('');
+            
+        return `<tr>
+            <td><strong>${t.name || 'Nepojmenováno'}</strong><br><span style="font-size:11px; color:#7f8c8d">${t.typ === 'komerce' ? 'Komerce' : 'Byt'} | ${t.email || 'Bez e-mailu'}</span></td>
+            <td>${t.unit || '-'}</td>
+            <td>${badgesHtml}</td>
+            <td><button class="btn btn-blue" onclick="openEdit(${t.rowidx})">Karta</button></td>
+        </tr>`;
+    }).join('');
+}
 
     function toggleTypProstoru() {
         if (document.getElementById('f-typ').value === 'komerce') { document.getElementById('komerce-fields').classList.remove('hidden'); document.getElementById('label-name').innerText = "Název firmy"; } 
