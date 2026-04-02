@@ -598,11 +598,30 @@
         }
 
         if(sc.srazky) {
-            let totalPlocha = 0;
-            sc.srazky.tenants.forEach(n => { const t = DATA.tenants.find(x=>x.name==n); totalPlocha += Number(t?.plocha || 0); });
-            if(totalPlocha > 0) {
-                const cenaM2 = Number(sc.srazky.cena || 0) / totalPlocha;
-                sc.srazky.tenants.forEach(n => { const t = DATA.tenants.find(x=>x.name==n); shares[n].srazky = Math.round(Number(t?.plocha || 0) * cenaM2); });
+            const CELKOVA_PLOCHA_OBJEKTU = 593; // Fixní plocha dle zadání
+            const celkovaCenaSrazky = Number(sc.srazky.cena || 0);
+            const cenaZaMetr = celkovaCenaSrazky / CELKOVA_PLOCHA_OBJEKTU;
+
+            let vyuzitaPlochaOstatnich = 0;
+
+            // 1. Vypočítáme podíly pro všechny zaškrtnuté (mimo majitele)
+            sc.srazky.tenants.forEach(n => {
+                if (n !== "AMK TRABANT PLZEŇ z.s.") {
+                    const t = DATA.tenants.find(x => x.name == n);
+                    const plocha = Number(t?.plocha || 0);
+                    vyuzitaPlochaOstatnich += plocha;
+                    shares[n].srazky = Math.round(plocha * cenaZaMetr);
+                }
+            });
+
+            // 2. Majiteli (pokud je v seznamu) přiřadíme automaticky zbytek plochy
+            if (sc.srazky.tenants.includes("AMK TRABANT PLZEŇ z.s.")) {
+                const plochaMajitele = CELKOVA_PLOCHA_OBJEKTU - vyuzitaPlochaOstatnich;
+                shares["AMK TRABANT PLZEŇ z.s."].srazky = Math.round(plochaMajitele * cenaZaMetr);
+                
+                // Pomocná informace pro zobrazení v detailu vyúčtování (volitelné)
+                const majitelRow = DATA.tenants.find(x => x.name === "AMK TRABANT PLZEŇ z.s.");
+                if(majitelRow) majitelRow.vypoctenaPlocha = plochaMajitele;
             }
         }
 
