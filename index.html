@@ -539,10 +539,12 @@
 // Funkce pro generování QR kódu pro okamžitý doplatek
 function generateDoplatekQR(castka, mesic, jednotka) {
     const currentYear = new Date().getFullYear().toString();
-    const vs = currentYear + "8800" + String(jednotka || "").replace(/\D/g,"").padStart(2,'0');
-    const zprava = "Doplatek " + mesic;
+    const vs = currentYear + "9900" + String(jednotka || "").replace(/\D/g,"").padStart(2,'0');    
+    // Najdeme index měsíce (např. "Duben" -> 4)
+    const mIndex = mesiceNázvy.indexOf(mesicIdx); 
+    const zprava = `Doplatek ${mIndex}/${currentYear}`;
     const qrUrl = `https://api.paylibo.com/paylibo/generator/czech/image?accountNumber=2401555604&bankCode=2010&amount=${castka}&vs=${vs}&currency=CZK&message=${encodeURIComponent(zprava)}`;
-
+    
     const w = window.open("", "_blank", "width=400,height=550");
     w.document.write(`
         <html><body style="font-family:'Segoe UI',sans-serif; text-align:center; padding:20px;">
