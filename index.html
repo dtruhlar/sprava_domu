@@ -369,7 +369,6 @@
         }).join('');
     }
 
-    // VRÁCENO: Funkce pro zobrazení/skrytí firemních údajů
     function toggleTypProstoru() {
         if (document.getElementById('f-typ').value === 'komerce') { document.getElementById('komerce-fields').classList.remove('hidden'); document.getElementById('label-name').innerText = "Název firmy"; } 
         else { document.getElementById('komerce-fields').classList.add('hidden'); document.getElementById('label-name').innerText = "Celé jméno"; }
@@ -396,14 +395,16 @@
             // OSM Načítání historie
             document.getElementById('osm-container').innerHTML = "";
             try {
-                const osm = JSON.parse(t.osmhistory || t.osm_history || "[]");
+                let osmData = t.osm_history || t.osmhistory || "[]";
+                let osm = JSON.parse(osmData);
+                if (typeof osm === 'string') osm = JSON.parse(osm); // Ošetření pro dvojitý string z App Scriptu
+                
                 if(osm.length === 0) addOsmRow();
                 else osm.forEach(r => addOsmRow(r.rok, r.osoby, r.mesice));
             } catch(e) { addOsmRow(); }
 
             if(t.platnostdo) document.getElementById('f-platnostdo').value = new Date(t.platnostdo).toISOString().split('T')[0];
             
-            // VRÁCENO: Logika vyhledání posledního vodoměru
             const mHist = (DATA.meters || []).filter(m => String(m.name).toLowerCase() === String(t.name).toLowerCase());
             const last = mHist[mHist.length-1];
             document.getElementById('meterSection').innerHTML = last ? `<div class="grid"><div><label>Minulý stav vodoměru</label><input id="f-meterStart" value="${last.koncovy}" readonly style="background:#eee"></div><div><label>Nový stav vodoměru</label><input type="number" id="f-meterEnd"></div></div>` : `<label>Počáteční stav vodoměru</label><input type="number" id="f-meterStart">`;
@@ -414,7 +415,6 @@
     async function handleSave() {
         const osmRows = Array.from(document.querySelectorAll('.osm-row')).map(r => ({ rok: r.querySelector('.osm-rok').value, osoby: r.querySelector('.osm-osoby').value, mesice: r.querySelector('.osm-mesice').value }));
         
-        // Nová validace: Součet měsíců musí být 12 pro každý zadaný rok
         const years = [...new Set(osmRows.map(r => r.rok))];
         for(let y of years) {
             const sum = osmRows.filter(r => r.rok == y).reduce((s, r) => s + Number(r.mesice), 0);
@@ -433,14 +433,12 @@
         DATA = await resp.json(); renderAdminTable(); closeModal(); btn.innerText = "Uložit celou kartu";
     }
 
-    // VRÁCENO: Tvoje funkce pro uložení mimořádného nákladu (opravy/služby)
     async function saveOnlyCost() {
         const p = { id: getNextId(DATA.costs), name: document.getElementById('f-name').value, desc: document.getElementById('c-desc').value, price: document.getElementById('c-price').value, date: document.getElementById('c-date').value, year: new Date(document.getElementById('c-date').value).getFullYear() };
         const resp = await fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify({action:'addCost', payload:p}) });
         DATA = await resp.json(); alert("Uloženo.");
     }
 
-    // --- SHARED COSTS FUNKCE (Všechny tvoje zachovány) ---
     function addVodaRow(cena='', m3='', dph='') {
         const div = document.createElement('div'); div.className = 'grid-3 voda-row'; div.innerHTML = `<div><input type="number" class="v-cena" value="${cena}" oninput="calcVoda()"></div><div><input type="number" class="v-dph" value="${dph}" oninput="calcVoda()"></div><div><input type="number" class="v-m3" value="${m3}" oninput="calcVoda()"></div>`;
         document.getElementById('voda-segments').appendChild(div);
@@ -510,18 +508,26 @@
         DATA = await resp.json(); alert("Uloženo pod ID: " + newId);
     }
 
+    // OPRAVENO: Výpočet OSM, robustnější porovnání a parsování
     function calculateTenantShares(year) {
-        const saved = (DATA.sharedCosts || []).find(s => s.year == year); if(!saved) return null;
+        const saved = (DATA.sharedCosts || []).find(s => String(s.year).trim() === String(year).trim()); 
+        if(!saved) return null;
         const sc = JSON.parse(saved.data); let shares = {};
 
         const tenantsOSM = (DATA.tenants || []).map(t => {
             let osm = 0; 
             try { 
-                const h = JSON.parse(t.osm_history || t.osmhistory || "[]"); 
-                const filtered = h.filter(r => r.rok == year); 
-                if(filtered.length > 0) filtered.forEach(r => osm += (Number(r.osoby)*Number(r.mesice))); 
-                else osm = 12; // Výchozí stav pokud záznam pro rok chybí
-            } catch(e){ osm = 12; }
+                let osmData = t.osm_history || t.osmhistory || "[]";
+                let h = JSON.parse(osmData);
+                if (typeof h === 'string') h = JSON.parse(h); // Dvojité parsování pokud to Apps Script obalí do textu
+                
+                const filtered = h.filter(r => String(r.rok).trim() === String(year).trim()); 
+                if(filtered.length > 0) {
+                    filtered.forEach(r => osm += (Number(r.osoby) * Number(r.mesice))); 
+                } else {
+                    osm = 12; 
+                }
+            } catch(e) { osm = 12; }
             return { name: t.name, osm: osm, plocha: Number(t.plocha || 0) };
         });
 
@@ -554,13 +560,13 @@
         return shares;
     }
 
-    // VRÁCENO: Tvé původní roční vyúčtování i s uložením do portálu
+    // OPRAVENO: Zrušeno automatické ukládání, přidán ovládací panel do vyskakovacího okna
     async function generateSettlement() {
         const name = document.getElementById('f-name').value;
         const rok = prompt("Zadejte rok vyúčtování:", new Date().getFullYear() - 1); if(!rok) return;
         const t = DATA.tenants.find(x => x.name == name);
         const shares = calculateTenantShares(rok); if(!shares || !shares[name]) { alert("Chybí data pro rozúčtování za tento rok."); return; }
-        const podil = shares[name]; const saved = (DATA.sharedCosts || []).find(s => s.year == rok);
+        const podil = shares[name]; const saved = (DATA.sharedCosts || []).find(s => String(s.year).trim() === String(rok).trim());
         const sc = saved ? JSON.parse(saved.data) : null;
         const isChecked = (s) => sc && sc[s] && sc[s].tenants && sc[s].tenants.includes(name);
         const dSpl = new Date(); dSpl.setDate(dSpl.getDate() + 14);
@@ -594,22 +600,106 @@
             qr = `<div style="text-align:center;margin-top:20px;border:1px solid #f8d7da;padding:15px;background:#fff5f5;border-radius:8px;display:inline-block;"><h4 style="margin:0 0 10px 0;color:#c53030">Úhrada nedoplatku</h4><img src="https://api.paylibo.com/paylibo/generator/czech/image?accountNumber=2402266265&bankCode=2010&amount=${dluz}&vs=${vs}&currency=CZK&message=Nedoplatek+${rok}" width="150" height="150"><br><b>2402266265/2010</b><br>VS: ${vs} | ${dluz} Kč</div>`;
         }
 
+        const nextId = getNextId(DATA.settlements);
+        const emailSubject = `Vyúčtování služeb za rok ${rok}`;
+        const tenantEmail = t.email || "";
         const w = window.open("", "_blank");
-        w.document.write(`<html><head><style>body{font-family:'Segoe UI',sans-serif;padding:40px;color:#333;line-height:1.4}#obsahZuctovani{max-width:850px;margin:auto;border:1px solid #ddd;padding:40px;background:white}.header-flex{display:flex;justify-content:space-between;border-bottom:2px solid #eee;padding-bottom:20px;margin-bottom:30px}th{text-align:left;padding:10px;border-bottom:2px solid #3498db;background:#f0f7ff;color:#3498db;font-size:12px}td{padding:12px 10px;border-bottom:1px solid #eee;font-size:14px}.res-box{margin-top:30px;padding:25px;text-align:center;border:2px solid #333;border-radius:8px;font-size:20px}</style></head><body>
-            <div id="obsahZuctovani"><h1 style="text-align:center;margin-top:0">VYÚČTOVÁNÍ SLUŽEB ZA ROK ${rok}</h1>
-            <div class="header-flex"><div><b>Poskytovatel:</b><br>AMK TRABANT PLZEŇ z.s.<br>IČ: 45333637<br>Úslavská 339/2, Plzeň</div><div style="text-align:right"><b>Příjemce (jednotka ${t.unit}):</b><br>${t.name}<br>${t.street||''}<br>${t.zip||''} ${t.city||''}</div></div>
-            <div style="text-align:right;font-weight:bold;color:#e74c3c;margin-bottom:10px">Splatnost do: ${dSpl.toLocaleDateString('cs-CZ')}</div>
-            <table><thead><tr><th>DRUH SLUŽBY / VÝPOČET</th><th style="text-align:right">NÁKLADY OBJEKTU</th><th style="text-align:right">PODÍL JEDNOTKY</th></tr></thead><tbody>${rowH}</tbody></table>
-            <div class="res-box" style="border-color:${vysl>=0?'#27ae60':'#e74c3c'};background:${vysl>=0?'#f0fff4':'#fff5f5'}">VÝSLEDEK: <b style="color:${vysl>=0?'#27ae60':'#e74c3c'}">${vysl>=0?'PŘEPLATEK':'NEDOPLATEK'} ${Math.abs(vysl).toFixed(2)} Kč</b></div>
-            <div style="text-align:center">${qr}</div></div></body></html>`);
-        
-        // Záchrana hotového vyúčtování do portálu (Settlements)
-        const pSave = {
-            id: getNextId(DATA.settlements), name: name, year: rok, date: new Date().toLocaleDateString('cs-CZ'),
-            html: w.document.documentElement.innerHTML
-        };
-        await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'saveSettlement', payload: pSave, name: name, year: rok, date: pSave.date, html: pSave.html }) });
 
+        // Skript pro tlačítka - vloží se do nového okna
+        w.document.write(`<html>
+        <head>
+            <title>Vyúčtování ${rok} - ${t.name}</title>
+            <style>
+                body{font-family:'Segoe UI',sans-serif;padding:20px;color:#333;line-height:1.4;background:#f4f7f6}
+                #obsahZuctovani{max-width:850px;margin:auto;border:1px solid #ddd;padding:40px;background:white;box-shadow:0 0 10px rgba(0,0,0,0.05)}
+                .header-flex{display:flex;justify-content:space-between;border-bottom:2px solid #eee;padding-bottom:20px;margin-bottom:30px}
+                th{text-align:left;padding:10px;border-bottom:2px solid #3498db;background:#f0f7ff;color:#3498db;font-size:12px}
+                td{padding:12px 10px;border-bottom:1px solid #eee;font-size:14px}
+                .res-box{margin-top:30px;padding:25px;text-align:center;border:2px solid #333;border-radius:8px;font-size:20px}
+                
+                /* Styly pro ovládací panel (tlačítka se při tisku skryjí) */
+                .no-print { text-align: center; margin-bottom: 20px; padding: 15px; background: #fff; border: 1px solid #ddd; border-radius: 8px; max-width: 850px; margin-left: auto; margin-right: auto; }
+                .btn { padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px; margin: 0 5px; color: white; transition: 0.2s; }
+                .btn:hover { opacity: 0.9; }
+                .btn-blue { background: #3498db; }
+                .btn-green { background: #27ae60; }
+                .btn-orange { background: #e67e22; }
+                
+                @media print { 
+                    .no-print { display: none !important; } 
+                    body { background: white; padding: 0; } 
+                    #obsahZuctovani { box-shadow: none; border: none; padding: 0; max-width: 100%; } 
+                }
+            </style>
+        </head>
+        <body>
+            <div class="no-print">
+                <button class="btn btn-blue" onclick="window.print()">🖨️ Vytisknout (PDF / Papír)</button>
+                <button class="btn btn-green" id="btnSave" onclick="saveToPortal()">💾 Uložit do portálu nájemníka</button>
+                <button class="btn btn-orange" id="btnEmail" onclick="sendEmail()">📧 Odeslat nájemníkovi e-mailem</button>
+            </div>
+            
+            <div id="obsahZuctovani">
+                <h1 style="text-align:center;margin-top:0">VYÚČTOVÁNÍ SLUŽEB ZA ROK ${rok}</h1>
+                <div class="header-flex">
+                    <div><b>Poskytovatel:</b><br>AMK TRABANT PLZEŇ z.s.<br>IČ: 45333637<br>Úslavská 339/2, Plzeň</div>
+                    <div style="text-align:right"><b>Příjemce (jednotka ${t.unit}):</b><br>${t.name}<br>${t.street||''}<br>${t.zip||''} ${t.city||''}</div>
+                </div>
+                <div style="text-align:right;font-weight:bold;color:#e74c3c;margin-bottom:10px">Splatnost do: ${dSpl.toLocaleDateString('cs-CZ')}</div>
+                <table><thead><tr><th>DRUH SLUŽBY / VÝPOČET</th><th style="text-align:right">NÁKLADY OBJEKTU</th><th style="text-align:right">PODÍL JEDNOTKY</th></tr></thead><tbody>${rowH}</tbody></table>
+                <div class="res-box" style="border-color:${vysl>=0?'#27ae60':'#e74c3c'};background:${vysl>=0?'#f0fff4':'#fff5f5'}">VÝSLEDEK: <b style="color:${vysl>=0?'#27ae60':'#e74c3c'}">${vysl>=0?'PŘEPLATEK':'NEDOPLATEK'} ${Math.abs(vysl).toFixed(2)} Kč</b></div>
+                <div style="text-align:center">${qr}</div>
+            </div>
+
+            <script>
+                const API_URL = "${SCRIPT_URL}";
+                
+                async function saveToPortal() {
+                    const btn = document.getElementById('btnSave');
+                    btn.innerText = "Ukládám..."; btn.disabled = true;
+                    try {
+                        const htmlContent = document.getElementById('obsahZuctovani').outerHTML;
+                        const resp = await fetch(API_URL, { 
+                            method: 'POST', 
+                            body: JSON.stringify({ 
+                                action: 'saveSettlement',
+                                id: ${nextId},
+                                name: "${name}", 
+                                year: "${rok}", 
+                                date: "${new Date().toLocaleDateString('cs-CZ')}", 
+                                html: htmlContent 
+                            }) 
+                        });
+                        const res = await resp.json();
+                        if(res.success) { alert("Úspěšně uloženo do portálu!"); btn.innerText = "✓ Uloženo"; }
+                        else { alert("Chyba při ukládání."); btn.innerText = "💾 Zkusit uložit znovu"; btn.disabled = false; }
+                    } catch(e) { alert("Chyba spojení se serverem."); btn.innerText = "💾 Zkusit uložit znovu"; btn.disabled = false; }
+                }
+
+                async function sendEmail() {
+                    const email = "${tenantEmail}";
+                    if(!email) { alert("Chyba: Tento nájemník nemá v kartě vyplněný e-mail!"); return; }
+                    
+                    const btn = document.getElementById('btnEmail');
+                    btn.innerText = "Odesílám..."; btn.disabled = true;
+                    try {
+                        const htmlContent = document.getElementById('obsahZuctovani').outerHTML;
+                        const resp = await fetch(API_URL, { 
+                            method: 'POST', 
+                            body: JSON.stringify({ 
+                                action: 'sendSettlementEmail', 
+                                email: email, 
+                                subject: "${emailSubject}", 
+                                body: htmlContent 
+                            }) 
+                        });
+                        const res = await resp.json();
+                        if(res.success) { alert("Úspěšně odesláno na " + email); btn.innerText = "✓ Odesláno e-mailem"; }
+                        else { alert("Chyba při odesílání."); btn.innerText = "📧 Zkusit odeslat znovu"; btn.disabled = false; }
+                    } catch(e) { alert("Chyba spojení se serverem."); btn.innerText = "📧 Zkusit odeslat znovu"; btn.disabled = false; }
+                }
+            <\/script>
+        </body></html>`);
         w.document.close();
     }
 
