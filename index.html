@@ -258,6 +258,11 @@
             <div><label>Měsíční zálohy (Kč)</label><input type="number" id="f-zalohy"></div>
         </div>
         
+        <div style="background: #fff4e5; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+            <label style="color: #d35400;">Datum platnosti této ceny (od)</label>
+            <input type="date" id="f-rent_start">
+        </div>
+
         <div class="grid" style="margin-bottom: 15px;">
             <div><label>Datum původní smlouvy</label><input type="date" id="f-datum_smlouvy"></div>
             <div><label>Platnost smlouvy do</label><input type="date" id="f-platnostdo"></div>
@@ -300,6 +305,25 @@
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbye1MYHJuouHUFgOEtASCpViYWoCIIKnMXgdFiaByekENzrBT6LQTTQwt1IicxCrlgC/exec";
     let DATA = null; let USER = null; let CUR_EMAIL = "";
     const mesiceNázvy = ["", "Leden", "Únor", "Březen", "Duben", "Květen", "Červen", "Červenec", "Srpen", "Září", "Říjen", "Listopad", "Prosinec"];
+
+    // Pomocná funkce pro zjištění ceny k datu
+    function getPriceForDate(tenant, history, checkDate) {
+        const tenantHistory = (history || []).filter(h => 
+            String(h.name).toLowerCase().trim() === String(tenant.name).toLowerCase().trim()
+        ).sort((a, b) => new Date(a.validfrom) - new Date(b.validfrom));
+
+        if (tenantHistory.length === 0) {
+            return Number(tenant.najem || 0) + Number(tenant.zalohy || 0);
+        }
+
+        let validEntry = null;
+        for (let entry of tenantHistory) {
+            if (new Date(entry.validfrom) <= checkDate) {
+                validEntry = entry;
+            }
+        }
+        return validEntry ? (Number(validEntry.najem) + Number(validEntry.zalohy)) : (Number(tenantHistory[0].najem) + Number(tenantHistory[0].zalohy));
+    }
 
     function getNextId(dataList) {
         if (!dataList || dataList.length === 0) return 1;
@@ -356,19 +380,19 @@
     function logout() { localStorage.clear(); location.reload(); }
     
     function startApp() {
-    document.getElementById('loginSection').classList.add('hidden'); 
-    document.getElementById('app').classList.remove('hidden');
-    
-    if(USER.role === 'admin') { 
-        document.getElementById('adminContent').classList.remove('hidden'); 
-        document.getElementById('tenantContent').classList.add('hidden');
-        renderAdminTable(); 
-    } else {
-        document.getElementById('adminContent').classList.add('hidden');
-        document.getElementById('tenantContent').classList.remove('hidden');
-        renderTenantView();
+        document.getElementById('loginSection').classList.add('hidden'); 
+        document.getElementById('app').classList.remove('hidden');
+        
+        if(USER.role === 'admin') { 
+            document.getElementById('adminContent').classList.remove('hidden'); 
+            document.getElementById('tenantContent').classList.add('hidden');
+            renderAdminTable(); 
+        } else {
+            document.getElementById('adminContent').classList.add('hidden');
+            document.getElementById('tenantContent').classList.remove('hidden');
+            renderTenantView();
+        }
     }
-}
 
     function renderAdminTable() {
         const curM = new Date().getMonth() + 1;
@@ -385,20 +409,9 @@
 
         tBody.innerHTML = (DATA.tenants || []).map(t => {
             let dluzneMesice = [];
-            const mojeHistorie = (DATA.renthistory || []).filter(h => 
-                String(h.name).toLowerCase().trim() === String(t.name).toLowerCase().trim()
-            );
-
             for (let m = 1; m <= curM; m++) {
                 const datumVMesici = new Date(curY, m - 1, 28);
-                let platnaCena = mojeHistorie
-                    .filter(h => new Date(h.validfrom) <= datumVMesici)
-                    .sort((a, b) => new Date(b.validfrom) - new Date(a.validfrom))[0];
-
-                const ocekavano = platnaCena ? 
-                    (Number(platnaCena.najem) + Number(platnaCena.zalohy)) : 
-                    (Number(t.najem) + Number(t.zalohy));
-
+                const ocekavano = getPriceForDate(t, DATA.renthistory, datumVMesici);
                 const zaplaceno = paymentMap[`${String(t.name).trim().toLowerCase()}_${m}`] || 0;
                 
                 if (ocekavano > 0 && zaplaceno < ocekavano) {
@@ -430,7 +443,6 @@
 
     const curY = new Date().getFullYear();
     const curM = new Date().getMonth() + 1;
-    const mojeHistorie = (DATA.renthistory || []).filter(h => String(h.name).toLowerCase().trim() === String(t.name).toLowerCase().trim());
     const platbyVRoce = (DATA.payments || []).filter(p => 
         String(p.name).toLowerCase() === String(t.name).toLowerCase() && Number(p.year) === curY
     );
@@ -439,12 +451,7 @@
     for (let m = 1; m <= 12; m++) {
         const zaplaceno = platbyVRoce.filter(p => Number(p.month) === m).reduce((s, p) => s + Number(p.amount), 0);
         const datumVMesici = new Date(curY, m - 1, 28);
-        
-        let platnaCena = mojeHistorie
-            .filter(h => new Date(h.validfrom) <= datumVMesici)
-            .sort((a, b) => new Date(b.validfrom) - new Date(a.validfrom))[0];
-
-        const ocekavanoMesicne = platnaCena ? (Number(platnaCena.najem) + Number(platnaCena.zalohy)) : (Number(t.najem) + Number(t.zalohy));
+        const ocekavanoMesicne = getPriceForDate(t, DATA.renthistory, datumVMesici);
         
         let status = "";
         let barva = "";
@@ -540,8 +547,7 @@
 function generateDoplatekQR(castka, mesic, jednotka) {
     const currentYear = new Date().getFullYear().toString();
     const vs = currentYear + "9900" + String(jednotka || "").replace(/\D/g,"").padStart(2,'0');    
-    // Najdeme index měsíce (např. "Duben" -> 4)
-    const mIndex = mesiceNázvy.indexOf(mesicIdx); 
+    const mIndex = mesiceNázvy.indexOf(mesic); 
     const zprava = `Doplatek ${mIndex}/${currentYear}`;
     const qrUrl = `https://api.paylibo.com/paylibo/generator/czech/image?accountNumber=2401555604&bankCode=2010&amount=${castka}&vs=${vs}&currency=CZK&message=${encodeURIComponent(zprava)}`;
     
@@ -611,6 +617,7 @@ async function sendTenantMessage(tenantName) {
     }
 
     function openEdit(idx) {
+        document.getElementById('f-rent_start').value = ""; // Reset pole pro datum změny ceny
         if(!idx) {
             document.getElementById('f-rowidx').value = ""; document.querySelectorAll('#modal input').forEach(i => { if(i.type !== 'checkbox') i.value = "" });
             document.getElementById('osm-container').innerHTML = ""; addOsmRow();
@@ -631,7 +638,6 @@ async function sendTenantMessage(tenantName) {
             document.getElementById('f-zip').value = t.zip || ""; document.getElementById('f-email').value = t.email || "";
             document.getElementById('f-telefon').value = t.telefon || ""; document.getElementById('f-najem').value = t.najem || 0;
             document.getElementById('f-zalohy').value = t.zalohy || 0;
-            
             document.getElementById('f-dodatek').value = t.dodatek || "";
             
             document.getElementById('osm-container').innerHTML = "";
@@ -639,67 +645,26 @@ async function sendTenantMessage(tenantName) {
                 let osmData = t.osm_history || t.osmhistory || t.osm_hystory || "[]";
                 let osm = JSON.parse(osmData);
                 if (typeof osm === 'string') osm = JSON.parse(osm);
-                
                 if(osm.length === 0) addOsmRow();
                 else osm.forEach(r => addOsmRow(r.rok, r.osoby, r.mesice));
             } catch(e) { addOsmRow(); }
 
-            if (t.platnostdo) {
-                let dStr = String(t.platnostdo).trim();
+            // Pomocná funkce pro parsování data do inputu
+            const parseToInputDate = (dStr) => {
+                if (!dStr) return "";
                 let pd = new Date(dStr);
-                if (dStr.includes('.')) {
-                    let parts = dStr.replace(/\s/g, '').split('.');
-                    if (parts.length === 3) {
-                        pd = new Date(`${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`);
-                    }
+                if (String(dStr).includes('.')) {
+                    let parts = String(dStr).replace(/\s/g, '').split('.');
+                    if (parts.length === 3) pd = new Date(`${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`);
                 }
-                if (!isNaN(pd.getTime())) {
-                    let yyyy = pd.getFullYear();
-                    let mm = String(pd.getMonth() + 1).padStart(2, '0');
-                    let dd = String(pd.getDate()).padStart(2, '0');
-                    document.getElementById('f-platnostdo').value = `${yyyy}-${mm}-${dd}`;
-                }
-            }
+                return isNaN(pd.getTime()) ? "" : pd.toISOString().split('T')[0];
+            };
 
-            if (t.datum_smlouvy) {
-                let dStr = String(t.datum_smlouvy).trim();
-                let pd = new Date(dStr);
-                if (dStr.includes('.')) {
-                    let parts = dStr.replace(/\s/g, '').split('.');
-                    if (parts.length === 3) {
-                        pd = new Date(`${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`);
-                    }
-                }
-                if (!isNaN(pd.getTime())) {
-                    let yyyy = pd.getFullYear();
-                    let mm = String(pd.getMonth() + 1).padStart(2, '0');
-                    let dd = String(pd.getDate()).padStart(2, '0');
-                    document.getElementById('f-datum_smlouvy').value = `${yyyy}-${mm}-${dd}`;
-                }
-            }
-
-            if (t.datum_narozeni) {
-                let dStr = String(t.datum_narozeni).trim();
-                let pd = new Date(dStr);
-                if (dStr.includes('.')) {
-                    let parts = dStr.replace(/\s/g, '').split('.');
-                    if (parts.length === 3) {
-                        pd = new Date(`${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`);
-                    }
-                }
-                if (!isNaN(pd.getTime())) {
-                    let yyyy = pd.getFullYear();
-                    let mm = String(pd.getMonth() + 1).padStart(2, '0');
-                    let dd = String(pd.getDate()).padStart(2, '0');
-                    document.getElementById('f-datum_narozeni').value = `${yyyy}-${mm}-${dd}`;
-                }
-            } else {
-                document.getElementById('f-datum_narozeni').value = "";
-            }
+            document.getElementById('f-platnostdo').value = parseToInputDate(t.platnostdo);
+            document.getElementById('f-datum_smlouvy').value = parseToInputDate(t.datum_smlouvy);
+            document.getElementById('f-datum_narozeni').value = parseToInputDate(t.datum_narozeni);
             
-            const mHist = (DATA.meters || []).filter(m => {
-                return String(m.name).toLowerCase() === String(t.name).toLowerCase() && !isNaN(parseFloat(String(m.koncovy).replace(',', '.')));
-            });
+            const mHist = (DATA.meters || []).filter(m => String(m.name).toLowerCase() === String(t.name).toLowerCase() && !isNaN(parseFloat(String(m.koncovy).replace(',', '.'))));
             const last = mHist.length > 0 ? mHist[mHist.length-1] : null;
             document.getElementById('meterSection').innerHTML = last ? `<div class="grid"><div><label>Minulý stav vodoměru</label><input id="f-meterStart" value="${last.koncovy}" readonly style="background:#eee"></div><div><label>Nový stav vodoměru</label><input type="number" id="f-meterEnd"></div></div>` : `<label>Počáteční stav vodoměru</label><input type="number" id="f-meterStart">`;
         }
@@ -723,183 +688,38 @@ async function sendTenantMessage(tenantName) {
     const dodatekNum = t.dodatek || "1";
     const termJednotka = t.typ === 'komerce' ? "nebytových prostor" : "bytu";
 
-    // Legislativní body
     let part3 = "";
     if (chPlatnost && t.platnostdo) {
         const pDateParts = t.platnostdo.split('-');
         const pDate = `${parseInt(pDateParts[2])}. ${parseInt(pDateParts[1])}. ${pDateParts[0]}`;
-        part3 = `
-        <h3>III.<br>Doba nájmu</h3>
-        <p>Nájem ${termJednotka} se uzavírá na dobu určitou a to do <b>${pDate}</b>.</p>
-        `;
+        part3 = `<h3>III.<br>Doba nájmu</h3><p>Nájem ${termJednotka} se uzavírá na dobu určitou a to do <b>${pDate}</b>.</p>`;
     }
 
     let part4 = "";
     if (chNajem || chZalohy) {
-        part4 = `
-        <h3>IV.<br>Nájemné a způsob úhrady</h3>
-        <p>Nájemné je stanoveno dohodou smluvních stran ve výši <b>${t.najem},- Kč / měsíc</b>.</p>
-        <p>Služby spojené s užíváním ${termJednotka} jsou hrazeny zálohově ve výši <b>${t.zalohy},- Kč / měsíčně</b>, vždy společně s úhradou nájemného.</p>
-        <p>Ostatní ujednání ohledně valorizace nájemného zůstávají v platnosti dle původní smlouvy.</p>
-        `;
+        part4 = `<h3>IV.<br>Nájemné a způsob úhrady</h3><p>Nájemné je stanoveno dohodou smluvních stran ve výši <b>${t.najem},- Kč / měsíc</b>.</p><p>Služby spojené s užíváním ${termJednotka} jsou hrazeny zálohově ve výši <b>${t.zalohy},- Kč / měsíčně</b>, vždy společně s úhradou nájemného.</p><p>Ostatní ujednání ohledně valorizace nájemného zůstávají v platnosti dle původní smlouvy.</p>`;
     }
 
-    // Identifikace nájemce dle typu
     let tenantHeader = "";
     let tenantSignName = "";
 
     if (t.typ === 'komerce') {
-        tenantHeader = `
-            <b>${t.name}</b><br>
-            IČO: ${t.ico}<br>
-            se sídlem: ${t.street}, ${t.zip} ${t.city}<br>
-            zastoupená jednatelem: ${t.jednatel}
-        `;
+        tenantHeader = `<b>${t.name}</b><br>IČO: ${t.ico}<br>se sídlem: ${t.street}, ${t.zip} ${t.city}<br>zastoupená jednatelem: ${t.jednatel}`;
         tenantSignName = `<b>${t.name}</b><br><small>zast. ${t.jednatel}</small>`;
     } else {
         let dobStr = t.datum_narozeni ? new Date(t.datum_narozeni).toLocaleDateString('cs-CZ') : "....................";
-        tenantHeader = `
-            pan/paní <b>${t.name}</b><br>
-            narozen/a: ${dobStr}<br>
-            bytem: ${t.street}, ${t.zip} ${t.city}
-        `;
+        tenantHeader = `pan/paní <b>${t.name}</b><br>narozen/a: ${dobStr}<br>bytem: ${t.street}, ${t.zip} ${t.city}`;
         tenantSignName = `<b>${t.name}</b>`;
     }
 
-    const html = `
-    <html>
-    <head>
-        <title>Dodatek č. ${dodatekNum} - ${t.name}</title>
-        <style>
-            @page { size: A4; margin: 1.5cm 2cm; }
-            body { font-family: 'Times New Roman', Times, serif; padding: 0; max-width: 100%; margin: 0; line-height: 1.4; font-size: 15px; color: #000; }
-            h2 { text-align: center; font-size: 18px; margin-top: 0; margin-bottom: 15px; text-transform: uppercase; }
-            h3 { text-align: center; font-size: 15px; margin-top: 15px; margin-bottom: 5px; font-weight: bold; }
-            p { text-align: justify; margin-bottom: 6px; margin-top: 0; }
-            .signatures { display: flex; justify-content: space-between; margin-top: 35px; }
-            .sig-box { width: 45%; text-align: center; }
-            .sig-line { border-bottom: 1px dotted #000; margin-bottom: 5px; height: 35px; }
-            .no-print { text-align: center; margin-bottom: 20px; padding: 15px; background: #f4f7f6; border-radius: 8px; border-bottom: 1px solid #ddd; }
-            .btn { padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px; margin: 0 5px; color: white; transition: 0.2s; display: inline-block; }
-            .btn:hover { opacity: 0.9; }
-            .btn-blue { background: #3498db; }
-            .btn-green { background: #27ae60; }
-            .btn-orange { background: #e67e22; }
-            @media print { .no-print { display: none; } body { padding: 0; } }
-        </style>
-    </head>
-    <body>
-        <div class="no-print">
-            <button class="btn btn-blue" onclick="window.print()">🖨️ Vytisknout dodatek</button>
-            <button class="btn btn-orange" id="btnDrive" onclick="saveToDrive()">☁️ Uložit na Google Disk</button>
-            <button class="btn btn-green" id="btnPortal" onclick="saveToPortal()">📁 Odeslat do portálu (Smlouvy)</button>
-        </div>
-
-        <h2>Dodatek č. ${dodatekNum} k nájemní smlouvě<br>ze dne ${origDate}</h2>
-        
-        <p style="margin-top: 15px;">Níže uvedeného dne, měsíce, roku uzavřeli:</p>
-
-        <p>
-            <b>Spolek AMK Trabant Plzeň z.s.</b>, IČ: 45333637,<br>
-            se sídlem: Úslavská 339/2, Východní předměstí, 326 00 Plzeň,<br>
-            zastoupená předsedou panem Jiřím Vachtlem,<br>
-            <i>(dále jen „pronajímatel“)</i>
-        </p>
-        <p style="text-align:center; margin: 5px 0;"><b>a</b></p>
-        <p>
-            ${tenantHeader}
-            <i>(dále jen „nájemce“)</i>
-        </p>
-        <p style="text-align:center; font-style: italic; margin-top: 10px;">(ve smlouvě společně dále jen jako „smluvní strany“)</p>
-
-        <h2 style="margin-top:20px; font-size: 16px;">tento<br>Dodatek k nájemní smlouvě</h2>
-        <p style="text-align:center; margin-bottom: 10px;">k jednotce (dveře č. ${t.unit}), na adrese Úslavská 339/2, 326 00 Plzeň.</p>
-
-        ${part3}
-        ${part4}
-
-        <p style="margin-top: 20px;">Ostatní ustanovení nájemní smlouvy zůstávají nadále v platnosti beze změn.</p>
-        <p>Dodatek č. ${dodatekNum} k nájemní smlouvě se sjednává s účinností od <b>${effDateStr}</b>. Vyhotovuje se ve dvou stejnopisech a stává se nedílnou součástí nájemní smlouvy ze dne ${origDate}.</p>
-
-        <p style="margin-top: 25px;">V Plzni dne ${todayStr}</p>
-
-        <div class="signatures">
-            <div class="sig-box">
-                <p style="text-align:left;">Pronajímatel:</p>
-                <div class="sig-line"></div>
-                <b>AMK Trabant Plzeň z.s.</b><br>
-                zastoupený předsedou Jiřím Vachtlem
-            </div>
-            <div class="sig-box">
-                <p style="text-align:left;">Nájemce:</p>
-                <div class="sig-line"></div>
-                ${tenantSignName}
-            </div>
-        </div>
-
-        <script>
-            const API_URL = "${SCRIPT_URL}";
-            
-            function getCleanHTML() {
-                let clone = document.documentElement.cloneNode(true);
-                let noPrint = clone.querySelector('.no-print');
-                if (noPrint) noPrint.remove();
-                let scripts = clone.querySelectorAll('script');
-                scripts.forEach(s => s.remove());
-                return clone.outerHTML;
-            }
-
-            async function saveToDrive() {
-                const btn = document.getElementById('btnDrive');
-                btn.innerText = "Ukládám..."; btn.disabled = true;
-                try {
-                    const htmlContent = getCleanHTML();
-                    const resp = await fetch(API_URL, { 
-                        method: 'POST', 
-                        body: JSON.stringify({ 
-                            action: 'saveAddendumToDrive',
-                            name: "${t.name}",
-                            dodatekNum: "${dodatekNum}",
-                            html: htmlContent 
-                        }) 
-                    });
-                    const res = await resp.json();
-                    if(res.success) { alert("Úspěšně uloženo na Google Disk!"); btn.innerText = "✓ Uloženo na Disk"; }
-                    else { alert("Chyba při ukládání: " + res.error); btn.innerText = "☁️ Zkusit uložit znovu"; btn.disabled = false; }
-                } catch(e) { alert("Chyba spojení."); btn.innerText = "☁️ Zkusit uložit znovu"; btn.disabled = false; }
-            }
-
-            async function saveToPortal() {
-                const btn = document.getElementById('btnPortal');
-                btn.innerText = "Odesílám..."; btn.disabled = true;
-                try {
-                    const htmlContent = getCleanHTML();
-                    const resp = await fetch(API_URL, { 
-                        method: 'POST', 
-                        body: JSON.stringify({ 
-                            action: 'saveAddendumToPortal',
-                            name: "${t.name}",
-                            dodatekNum: "${dodatekNum}",
-                            html: htmlContent 
-                        }) 
-                    });
-                    const res = await resp.json();
-                    if(res.success) { alert("Úspěšně odesláno do portálu!"); btn.innerText = "✓ Odesláno do portálu"; }
-                    else { alert("Chyba při odesílání."); btn.innerText = "📁 Zkusit odeslat znovu"; btn.disabled = false; }
-                } catch(e) { alert("Chyba spojení."); btn.innerText = "📁 Zkusit odeslat znovu"; btn.disabled = false; }
-            }
-        <\/script>
-    </body>
-    </html>
-    `;
-
+    const html = `<html><head><title>Dodatek č. ${dodatekNum} - ${t.name}</title><style>@page { size: A4; margin: 1.5cm 2cm; }body { font-family: 'Times New Roman', Times, serif; padding: 0; max-width: 100%; margin: 0; line-height: 1.4; font-size: 15px; color: #000; }h2 { text-align: center; font-size: 18px; margin-top: 0; margin-bottom: 15px; text-transform: uppercase; }h3 { text-align: center; font-size: 15px; margin-top: 15px; margin-bottom: 5px; font-weight: bold; }p { text-align: justify; margin-bottom: 6px; margin-top: 0; }.signatures { display: flex; justify-content: space-between; margin-top: 35px; }.sig-box { width: 45%; text-align: center; }.sig-line { border-bottom: 1px dotted #000; margin-bottom: 5px; height: 35px; }.no-print { text-align: center; margin-bottom: 20px; padding: 15px; background: #f4f7f6; border-radius: 8px; border-bottom: 1px solid #ddd; }.btn { padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px; margin: 0 5px; color: white; transition: 0.2s; display: inline-block; }.btn:hover { opacity: 0.9; }.btn-blue { background: #3498db; }.btn-green { background: #27ae60; }.btn-orange { background: #e67e22; }@media print { .no-print { display: none; } body { padding: 0; } }</style></head><body><div class="no-print"><button class="btn btn-blue" onclick="window.print()">🖨️ Vytisknout dodatek</button><button class="btn btn-orange" id="btnDrive" onclick="saveToDrive()">☁️ Uložit na Google Disk</button><button class="btn btn-green" id="btnPortal" onclick="saveToPortal()">📁 Odeslat do portálu (Smlouvy)</button></div><h2>Dodatek č. ${dodatekNum} k nájemní smlouvě<br>ze dne ${origDate}</h2><br><p style="margin-top: 15px;">Níže uvedeného dne, měsíce, roku uzavřeli:</p><p><b>Spolek AMK Trabant Plzeň z.s.</b>, IČ: 45333637,<br>se sídlem: Úslavská 339/2, Východní předměstí, 326 00 Plzeň,<br>zastoupená předsedou panem Jiřím Vachtlem,<br><i>(dále jen „pronajímatel“)</i></p><p style="text-align:center; margin: 5px 0;"><b>a</b></p><p>${tenantHeader}<br><i>(dále jen „nájemce“)</i></p><p style="text-align:center; font-style: italic; margin-top: 10px;">(ve smlouvě společně dále jen jako „smluvní strany“)</p><h2 style="margin-top:20px; font-size: 16px;">tento<br>Dodatek k nájemní smlouvě</h2><p style="text-align:center; margin-bottom: 10px;">k jednotce (dveře č. ${t.unit}), na adrese Úslavská 339/2, 326 00 Plzeň.</p>${part3}${part4}<p style="margin-top: 20px;">Ostatní ustanovení nájemní smlouvy zůstávají nadále v platnosti beze změn.</p><p>Dodatek č. ${dodatekNum} k nájemní smlouvě se sjednává s účinností od <b>${effDateStr}</b>. Vyhotovuje se ve dvou stejnopisech a stává se nedílnou součástí nájemní smlouvy ze dne ${origDate}.</p><p style="margin-top: 25px;">V Plzni dne ${todayStr}</p><div class="signatures"><div class="sig-box"><p style="text-align:left;">Pronajímatel:</p><div class="sig-line"></div><b>AMK Trabant Plzeň z.s.</b><br>zastoupený předsedou Jiřím Vachtlem</div><div class="sig-box"><p style="text-align:left;">Nájemce:</p><div class="sig-line"></div>${tenantSignName}</div></div><script>const API_URL = "${SCRIPT_URL}";function getCleanHTML() { let clone = document.documentElement.cloneNode(true); let noPrint = clone.querySelector('.no-print'); if (noPrint) noPrint.remove(); let scripts = clone.querySelectorAll('script'); scripts.forEach(s => s.remove()); return clone.outerHTML; }async function saveToDrive() { const btn = document.getElementById('btnDrive'); btn.innerText = "Ukládám..."; btn.disabled = true; try { const htmlContent = getCleanHTML(); const resp = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'saveAddendumToDrive', name: "${t.name}", dodatekNum: "${dodatekNum}", html: htmlContent }) }); const res = await resp.json(); if(res.success) { alert("Úspěšně uloženo na Google Disk!"); btn.innerText = "✓ Uloženo na Disk"; } else { alert("Chyba při ukládání: " + res.error); btn.innerText = "☁️ Zkusit uložit znovu"; btn.disabled = false; } } catch(e) { alert("Chyba spojení."); btn.innerText = "☁️ Zkusit uložit znovu"; btn.disabled = false; } }async function saveToPortal() { const btn = document.getElementById('btnPortal'); btn.innerText = "Odesílám..."; btn.disabled = true; try { const htmlContent = getCleanHTML(); const resp = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'saveAddendumToPortal', name: "${t.name}", dodatekNum: "${dodatekNum}", html: htmlContent }) }); const res = await resp.json(); if(res.success) { alert("Úspěšně odesláno do portálu!"); btn.innerText = "✓ Odesláno do portálu"; } else { alert("Chyba při odesílání."); btn.innerText = "📁 Zkusit odeslat znovu"; btn.disabled = false; } } catch(e) { alert("Chyba spojení."); btn.innerText = "📁 Zkusit odeslat znovu"; btn.disabled = false; } }<\/script></body></html>`;
     const w = window.open("", "_blank");
     w.document.write(html);
     w.document.close();
 }
+
     async function handleSave() {
         const osmRows = Array.from(document.querySelectorAll('.osm-row')).map(r => ({ rok: r.querySelector('.osm-rok').value, osoby: r.querySelector('.osm-osoby').value, mesice: r.querySelector('.osm-mesice').value }));
-        
         const years = [...new Set(osmRows.map(r => r.rok))];
         for(let y of years) {
             const sum = osmRows.filter(r => r.rok == y).reduce((s, r) => s + Number(r.mesice), 0);
@@ -911,7 +731,6 @@ async function sendTenantMessage(tenantName) {
         const rowIdx = document.getElementById('f-rowidx').value;
         
         let changedNajem = false, changedZalohy = false, changedPlatnost = false;
-        
         if (!isNew) {
             const orig = DATA.tenants.find(x => String(x.rowidx) === String(rowIdx));
             if (orig) {
@@ -923,14 +742,9 @@ async function sendTenantMessage(tenantName) {
         
         let mStartVal = document.getElementById('f-meterStart')?.value || "";
         let mEndVal = document.getElementById('f-meterEnd')?.value || "";
-        
         mStartVal = String(mStartVal).replace(',', '.');
         mEndVal = String(mEndVal).replace(',', '.');
-        
-        if (mEndVal.trim() === "" || isNaN(parseFloat(mEndVal))) {
-            mStartVal = ""; 
-            mEndVal = "";
-        }
+        if (mEndVal.trim() === "" || isNaN(parseFloat(mEndVal))) { mStartVal = ""; mEndVal = ""; }
 
         const p = {
             id: isNew ? getNextId(DATA.tenants) : "",
@@ -941,7 +755,8 @@ async function sendTenantMessage(tenantName) {
             datum_smlouvy: document.getElementById('f-datum_smlouvy').value,
             datum_narozeni: document.getElementById('f-datum_narozeni').value,
             meterStart: mStartVal, 
-            meterEnd: mEndVal
+            meterEnd: mEndVal,
+            rent_start: document.getElementById('f-rent_start').value
         };
         const resp = await fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify({action:'saveTenant', payload:p}) });
         DATA = await resp.json(); renderAdminTable(); closeModal(); btn.innerText = "Uložit celou kartu";
@@ -956,10 +771,7 @@ async function sendTenantMessage(tenantName) {
     async function saveOnlyCost() {
         let desc = document.getElementById('c-desc').value;
         const typ = document.getElementById('c-typ').value;
-        if (typ === 'zaloha') {
-            desc = "[EXTRA_ZÁLOHA] " + desc;
-        }
-
+        if (typ === 'zaloha') desc = "[EXTRA_ZÁLOHA] " + desc;
         const p = { id: getNextId(DATA.costs), name: document.getElementById('f-name').value, desc: desc, price: document.getElementById('c-price').value, date: document.getElementById('c-date').value, year: new Date(document.getElementById('c-date').value).getFullYear() };
         const resp = await fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify({action:'addCost', payload:p}) });
         DATA = await resp.json(); alert("Uloženo.");
@@ -995,7 +807,6 @@ async function sendTenantMessage(tenantName) {
         const y = document.getElementById('shared-year').value; 
         const saved = (DATA.sharedCosts || []).find(s => s.year == y);
         document.getElementById('voda-segments').innerHTML = ""; document.getElementById('srazky-segments').innerHTML = "";
-        
         if(saved) {
             const sc = JSON.parse(saved.data);
             if(sc.voda && sc.voda.segments) sc.voda.segments.forEach(seg => addVodaRow(seg.cena, seg.m3, seg.dph));
@@ -1021,7 +832,6 @@ async function sendTenantMessage(tenantName) {
         if(!y) { alert("Zadejte rok!"); return; }
         const existing = (DATA.sharedCosts || []).find(s => s.year == y);
         const newId = existing ? existing.id : getNextId(DATA.sharedCosts);
-
         const payloadData = {
             voda: { cena: document.getElementById('sc-voda-celkem-cena').innerText, m3: document.getElementById('sc-voda-celkem-m3').innerText, segments: Array.from(document.querySelectorAll('.voda-row')).map(r => ({cena: r.querySelector('.v-cena').value, dph: r.querySelector('.v-dph').value, m3: r.querySelector('.v-m3').value})), tenants: Array.from(document.querySelectorAll('.chk-voda:checked')).map(c => c.value) },
             srazky: { cena: document.getElementById('sc-srazky-celkem-cena').innerText, segments: Array.from(document.querySelectorAll('.srazky-row')).map(r => ({cena: r.querySelector('.s-cena').value, m3: r.querySelector('.s-m3').value})), tenants: Array.from(document.querySelectorAll('.chk-srazky:checked')).map(c => c.value) },
@@ -1038,27 +848,20 @@ async function sendTenantMessage(tenantName) {
         const saved = (DATA.sharedCosts || []).find(s => String(s.year).trim() === String(year).trim()); 
         if(!saved) return null;
         const sc = JSON.parse(saved.data); let shares = {};
-
         const tenantsOSM = (DATA.tenants || []).map(t => {
             let osm = 0; 
             try { 
                 let osmData = t.osm_history || t.osmhistory || t.osm_hystory || "[]";
                 let h = JSON.parse(osmData);
                 if (typeof h === 'string') h = JSON.parse(h); 
-                
                 const filtered = h.filter(r => String(r.rok).trim() === String(year).trim()); 
-                if(filtered.length > 0) {
-                    filtered.forEach(r => osm += (Number(r.osoby) * Number(r.mesice))); 
-                } else {
-                    osm = 12; 
-                }
+                if(filtered.length > 0) filtered.forEach(r => osm += (Number(r.osoby) * Number(r.mesice))); 
+                else osm = 12; 
             } catch(e) { osm = 12; }
             return { name: t.name, osm: osm, plocha: Number(t.plocha || 0) };
         });
-
         tenantsOSM.forEach(t => shares[t.name] = { voda:0, srazky:0, ele:0, odpady:0, uklid:0, celkem:0, mojeOSM: t.osm });
         const getSumOSM = (list) => tenantsOSM.filter(x => list.includes(x.name)).reduce((s, x) => s + x.osm, 0);
-
         if(sc.voda && Number(sc.voda.m3) > 0) {
             const pV = Number(sc.voda.cena) / Number(sc.voda.m3);
             sc.voda.tenants.forEach(n => { const m = (DATA.meters || []).filter(x => x.name == n && x.year == year); shares[n].voda = m.reduce((s, x) => s + Number(x.spotreba || 0), 0) * pV; });
@@ -1068,21 +871,16 @@ async function sendTenantMessage(tenantName) {
             sc.srazky.tenants.forEach(n => { if(n !== "AMK TRABANT PLZEŇ z.s.") { let pl = tenantsOSM.find(x => x.name == n)?.plocha || 0; uziv += pl; shares[n].srazky = pl * pM; } });
             if(sc.srazky.tenants.includes("AMK TRABANT PLZEŇ z.s.")) shares["AMK TRABANT PLZEŇ z.s."].srazky = (TOTAL_AREA - uziv) * pM;
         }
-
         ['ele', 'odpadyCP', 'odpadyAVE', 'uklid'].forEach(l => {
             if(sc[l] && sc[l].tenants && sc[l].tenants.length > 0) {
                 const totalOSM = getSumOSM(sc[l].tenants);
                 let zakladCeny = 0;
-                
                 if (l === 'ele') {
                     let h_diff = Number(sc.ele.hlavniEnd || 0) - Number(sc.ele.hlavniStart || 0);
                     let p_diff = Number(sc.ele.podruznyEnd || 0) - Number(sc.ele.podruznyStart || 0);
                     let spol_kwh = h_diff - p_diff;
                     zakladCeny = spol_kwh > 0 ? (spol_kwh * Number(sc.ele.sazba || 0)) : 0;
-                } else {
-                    zakladCeny = Number(sc[l].cena || sc[l].cenaCelkem || 0);
-                }
-
+                } else zakladCeny = Number(sc[l].cena || sc[l].cenaCelkem || 0);
                 const cenaOSM = totalOSM > 0 ? (zakladCeny / totalOSM) : 0;
                 sc[l].tenants.forEach(n => {
                     const podil = shares[n].mojeOSM * cenaOSM;
@@ -1091,7 +889,6 @@ async function sendTenantMessage(tenantName) {
                 });
             }
         });
-
         for (let k in shares) shares[k].celkem = shares[k].voda + shares[k].srazky + shares[k].ele + shares[k].odpady + shares[k].uklid;
         return shares;
     }
@@ -1114,179 +911,36 @@ async function sendTenantMessage(tenantName) {
             rowH += `<tr><td><b>Vodné a stočné</b><br><small>Stav: ${mS} m³ → ${mE} m³</small></td><td style="text-align:right">${Number(sc.voda.cena).toFixed(2)} Kč<br><small>${sc.voda.m3} m³</small></td><td style="text-align:right"><b>${podil.voda.toFixed(2)} Kč</b><br><small>(${spotr.toFixed(1)} m³)</small></td></tr>`;
         }
         if(podil.srazky > 0 && isChecked('srazky')) rowH += `<tr><td><b>Srážkovné</b><br><small>Plocha jednotky: ${t.plocha} m²</small></td><td style="text-align:right">${Number(sc.srazky.cena).toFixed(2)} Kč</td><td style="text-align:right"><b>${podil.srazky.toFixed(2)} Kč</b></td></tr>`;
-        
         if(podil.ele > 0 && isChecked('ele')) {
             const diffkWh = (Number(sc.ele.hlavniEnd) - Number(sc.ele.hlavniStart)) - (Number(sc.ele.podruznyEnd) - Number(sc.ele.podruznyStart));
             const spolCenaEle = diffkWh > 0 ? (diffkWh * Number(sc.ele.sazba)) : 0;
             rowH += `<tr><td><b>Společná elektřina</b><br><small>Dle OSM (${rok}): ${podil.mojeOSM}</small></td><td style="text-align:right">${spolCenaEle.toFixed(2)} Kč<br><small>${diffkWh.toFixed(1)} kWh | ${Number(sc.ele.sazba).toFixed(2)} Kč/kWh</small></td><td style="text-align:right"><b>${podil.ele.toFixed(2)} Kč</b><br><small>z ${podil.totalOSM_ele} OSM</small></td></tr>`;
         }
-        
         ['odpadyCP', 'odpadyAVE'].forEach(l => {
-            if(isChecked(l)) {
-                rowH += `<tr><td><b>Odpady (${l==='odpadyCP'?'Čistá Plzeň':'AVE'})</b><br><small>Dle OSM (${rok}): ${podil.mojeOSM}</small></td><td style="text-align:right">${Number(sc[l].cena).toFixed(2)} Kč</td><td style="text-align:right"><b>${podil.odpady.toFixed(2)} Kč</b><br><small>z ${podil['totalOSM_'+l]} OSM</small></td></tr>`;
-            }
+            if(isChecked(l)) rowH += `<tr><td><b>Odpady (${l==='odpadyCP'?'Čistá Plzeň':'AVE'})</b><br><small>Dle OSM (${rok}): ${podil.mojeOSM}</small></td><td style="text-align:right">${Number(sc[l].cena).toFixed(2)} Kč</td><td style="text-align:right"><b>${podil.odpady.toFixed(2)} Kč</b><br><small>z ${podil['totalOSM_'+l]} OSM</small></td></tr>`;
         });
         if(podil.uklid > 0 && isChecked('uklid')) rowH += `<tr><td><b>Úklid spol. prostor</b><br><small>Dle OSM (${rok}): ${podil.mojeOSM}</small></td><td style="text-align:right">${Number(sc.uklid.cena).toFixed(2)} Kč</td><td style="text-align:right"><b>${podil.uklid.toFixed(2)} Kč</b><br><small>z ${podil.totalOSM_uklid} OSM</small></td></tr>`;
-
         const allCosts = (DATA.costs || []).filter(c => c.name == name && c.year == rok);
         const costs = allCosts.filter(c => !String(c.desc).includes('[EXTRA_ZÁLOHA]'));
         const extraZalohy = allCosts.filter(c => String(c.desc).includes('[EXTRA_ZÁLOHA]'));
-
         const indNakl = costs.reduce((s, c) => s + Number(c.price || 0), 0);
         const sumExtraZalohy = extraZalohy.reduce((s, c) => s + Number(c.price || 0), 0);
-
         costs.forEach(c => { rowH += `<tr style="color:#2980b9"><td><b>Mimořádný náklad</b><br><small>${c.desc}</small></td><td style="text-align:right">-</td><td style="text-align:right"><b>${Number(c.price).toFixed(2)} Kč</b></td></tr>`; });
-
         const nakladyCelkem = podil.celkem + indNakl;
-        
         rowH += `<tr style="background:#fdfcf0; font-weight:bold; border-top: 2px solid #ccc;"><td>CELKOVÉ NÁKLADY JEDNOTKY</td><td style="text-align:right">-</td><td style="text-align:right">${nakladyCelkem.toFixed(2)} Kč</td></tr>`;
-
-        const tZ = Number(t.zalohy||0); 
-        const celkemPravidelneZalohy = tZ * 12;
-        const celkemZalohy = celkemPravidelneZalohy + sumExtraZalohy;
-
+        const tZ = Number(t.zalohy||0); const celkemPravidelneZalohy = tZ * 12; const celkemZalohy = celkemPravidelneZalohy + sumExtraZalohy;
         let zalohyHtml = `Pravidelné (${tZ} × 12): ${celkemPravidelneZalohy.toFixed(2)} Kč`;
-        extraZalohy.forEach(z => {
-            let descClean = z.desc.replace('[EXTRA_ZÁLOHA] ', '').replace('[EXTRA_ZÁLOHA]', '');
-            zalohyHtml += `<br>Mimořádná (${descClean}): ${Number(z.price).toFixed(2)} Kč`;
-        });
-
+        extraZalohy.forEach(z => { let descClean = z.desc.replace('[EXTRA_ZÁLOHA] ', '').replace('[EXTRA_ZÁLOHA]', ''); zalohyHtml += `<br>Mimořádná (${descClean}): ${Number(z.price).toFixed(2)} Kč`; });
         rowH += `<tr style="background:#f0fff4; color:#27ae60; font-weight:bold; border-top: 1px solid #ccc;"><td>UHRAZENÉ ZÁLOHY CELKEM<br><small style="font-weight:normal; color:#333;">${zalohyHtml}</small></td><td style="text-align:right">-</td><td style="text-align:right">- ${celkemZalohy.toFixed(2)} Kč</td></tr>`;
-
         const vysl = celkemZalohy - nakladyCelkem;
-
         let qr = ""; if(vysl < 0) {
-            const dluz = Math.abs(vysl).toFixed(2); 
-            const currentYear = new Date().getFullYear().toString();
-            const vs = currentYear + "8800" + String(t.unit||"").replace(/\D/g,"").padStart(2,'0');
-            
+            const dluz = Math.abs(vysl).toFixed(2); const currentYear = new Date().getFullYear().toString(); const vs = currentYear + "8800" + String(t.unit||"").replace(/\D/g,"").padStart(2,'0');
             qr = `<div style="text-align:center;margin-top:20px;border:1px solid #f8d7da;padding:15px;background:#fff5f5;border-radius:8px;display:inline-block;"><h4 style="margin:0 0 10px 0;color:#c53030">Úhrada nedoplatku</h4><img src="https://api.paylibo.com/paylibo/generator/czech/image?accountNumber=2401555604&bankCode=2010&amount=${dluz}&vs=${vs}&currency=CZK&message=Nedoplatek+${rok}" width="150" height="150"><br><b>2401555604/2010</b><br>VS: ${vs} | ${dluz} Kč</div>`;
         }
-
-        const nextId = getNextId(DATA.settlements);
-        const emailSubject = `Vyúčtování služeb za rok ${rok}`;
-        const tenantEmail = t.email || "";
-        const w = window.open("", "_blank");
-
-        w.document.write(`<html>
-        <head>
-            <title>Vyúčtování ${rok} - ${t.name}</title>
-            <style>
-                body{font-family:'Segoe UI',sans-serif;padding:20px;color:#333;line-height:1.4;background:#f4f7f6}
-                #obsahZuctovani{max-width:850px;margin:auto;border:1px solid #ddd;padding:40px;background:white;box-shadow:0 0 10px rgba(0,0,0,0.05)}
-                .header-flex{display:flex;justify-content:space-between;border-bottom:2px solid #eee;padding-bottom:20px;margin-bottom:30px}
-                th{text-align:left;padding:10px;border-bottom:2px solid #3498db;background:#f0f7ff;color:#3498db;font-size:12px}
-                td{padding:12px 10px;border-bottom:1px solid #eee;font-size:14px}
-                .res-box{margin-top:30px;padding:25px;text-align:center;border:2px solid #333;border-radius:8px;font-size:20px}
-                
-                .no-print { text-align: center; margin-bottom: 20px; padding: 15px; background: #fff; border: 1px solid #ddd; border-radius: 8px; max-width: 850px; margin-left: auto; margin-right: auto; }
-                .btn { padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px; margin: 0 5px; color: white; transition: 0.2s; }
-                .btn:hover { opacity: 0.9; }
-                .btn-blue { background: #3498db; }
-                .btn-green { background: #27ae60; }
-                .btn-orange { background: #e67e22; }
-                
-                @media print { 
-                    .no-print { display: none !important; } 
-                    body { background: white; padding: 0; } 
-                    #obsahZuctovani { box-shadow: none; border: none; padding: 0; max-width: 100%; } 
-                }
-            </style>
-        </head>
-        <body>
-            <div class="no-print">
-                <button class="btn btn-blue" onclick="window.print()">🖨️ Vytisknout (PDF / Papír)</button>
-                <button class="btn btn-green" id="btnSave" onclick="saveToPortal()">💾 Uložit do portálu nájemníka</button>
-                <button class="btn btn-orange" id="btnEmail" onclick="sendEmail()">📧 Odeslat nájemníkovi e-mailem</button>
-            </div>
-            
-            <div id="obsahZuctovani">
-                <h1 style="text-align:center;margin-top:0">VYÚČTOVÁNÍ SLUŽEB ZA ROK ${rok}</h1>
-                <div class="header-flex">
-                    <div><b>Poskytovatel:</b><br>AMK TRABANT PLZEŇ z.s.<br>IČ: 45333637<br>Úslavská 339/2, Plzeň</div>
-                    <div style="text-align:right"><b>Příjemce (jednotka ${t.unit}):</b><br>${t.name}<br>${t.street||''}<br>${t.zip||''} ${t.city||''}</div>
-                </div>
-                <div style="text-align:right;font-weight:bold;color:#e74c3c;margin-bottom:10px">Splatnost do: ${dSpl.toLocaleDateString('cs-CZ')}</div>
-                <table><thead><tr><th>DRUH SLUŽBY / VÝPOČET</th><th style="text-align:right">NÁKLADY OBJEKTU</th><th style="text-align:right">PODÍL JEDNOTKY</th></tr></thead><tbody>${rowH}</tbody></table>
-                <div class="res-box" style="border-color:${vysl>=0?'#27ae60':'#e74c3c'};background:${vysl>=0?'#f0fff4':'#fff5f5'}">VÝSLEDEK: <b style="color:${vysl>=0?'#27ae60':'#e74c3c'}">${vysl>=0?'PŘEPLATEK':'NEDOPLATEK'} ${Math.abs(vysl).toFixed(2)} Kč</b></div>
-                <div style="text-align:center">${qr}</div>
-            </div>
-
-            <script>
-                const API_URL = "${SCRIPT_URL}";
-                
-                async function saveToPortal() {
-                    const btn = document.getElementById('btnSave');
-                    btn.innerText = "Ukládám..."; btn.disabled = true;
-                    try {
-                        const htmlContent = document.getElementById('obsahZuctovani').outerHTML;
-                        const resp = await fetch(API_URL, { 
-                            method: 'POST', 
-                            body: JSON.stringify({ 
-                                action: 'saveSettlement',
-                                id: ${nextId},
-                                name: "${name}", 
-                                year: "${rok}", 
-                                date: "${new Date().toLocaleDateString('cs-CZ')}", 
-                                html: htmlContent 
-                            }) 
-                        });
-                        const res = await resp.json();
-                        if(res.success) { alert("Úspěšně uloženo do portálu!"); btn.innerText = "✓ Uloženo"; }
-                        else { alert("Chyba při ukládání."); btn.innerText = "💾 Zkusit uložit znovu"; btn.disabled = false; }
-                    } catch(e) { alert("Chyba spojení se serverem."); btn.innerText = "💾 Zkusit uložit znovu"; btn.disabled = false; }
-                }
-
-                async function sendEmail() {
-                    const email = "${tenantEmail}";
-                    if(!email) { alert("Chyba: Tento nájemník nemá v kartě vyplněný e-mail!"); return; }
-                    
-                    const btn = document.getElementById('btnEmail');
-                    btn.innerText = "Odesílám..."; btn.disabled = true;
-                    try {
-                        const htmlContent = document.getElementById('obsahZuctovani').outerHTML;
-                        const resp = await fetch(API_URL, { 
-                            method: 'POST', 
-                            body: JSON.stringify({ 
-                                action: 'sendSettlementEmail', 
-                                email: email, 
-                                subject: "${emailSubject}", 
-                                body: htmlContent 
-                            }) 
-                        });
-                        const res = await resp.json();
-                        if(res.success) { alert("Úspěšně odesláno na " + email); btn.innerText = "✓ Odesláno e-mailem"; }
-                        else { alert("Chyba při odesílání."); btn.innerText = "📧 Zkusit odeslat znovu"; btn.disabled = false; }
-                    } catch(e) { alert("Chyba spojení se serverem."); btn.innerText = "📧 Zkusit odeslat znovu"; btn.disabled = false; }
-                }
-            <\/script>
-        </body></html>`);
+        const nextId = getNextId(DATA.settlements); const emailSubject = `Vyúčtování služeb za rok ${rok}`; const tenantEmail = t.email || ""; const w = window.open("", "_blank");
+        w.document.write(`<html><head><title>Vyúčtování ${rok} - ${t.name}</title><style>body{font-family:'Segoe UI',sans-serif;padding:20px;color:#333;line-height:1.4;background:#f4f7f6}#obsahZuctovani{max-width:850px;margin:auto;border:1px solid #ddd;padding:40px;background:white;box-shadow:0 0 10px rgba(0,0,0,0.05)}.header-flex{display:flex;justify-content:space-between;border-bottom:2px solid #eee;padding-bottom:20px;margin-bottom:30px}th{text-align:left;padding:10px;border-bottom:2px solid #3498db;background:#f0f7ff;color:#3498db;font-size:12px}td{padding:12px 10px;border-bottom:1px solid #eee;font-size:14px}.res-box{margin-top:30px;padding:25px;text-align:center;border:2px solid #333;border-radius:8px;font-size:20px}.no-print { text-align: center; margin-bottom: 20px; padding: 15px; background: #fff; border: 1px solid #ddd; border-radius: 8px; max-width: 850px; margin-left: auto; margin-right: auto; }.btn { padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px; margin: 0 5px; color: white; transition: 0.2s; }.btn:hover { opacity: 0.9; }.btn-blue { background: #3498db; }.btn-green { background: #27ae60; }.btn-orange { background: #e67e22; }@media print { .no-print { display: none !important; } body { background: white; padding: 0; } #obsahZuctovani { box-shadow: none; border: none; padding: 0; max-width: 100%; } }</style></head><body><div class="no-print"><button class="btn btn-blue" onclick="window.print()">🖨️ Vytisknout (PDF / Papír)</button><button class="btn btn-green" id="btnSave" onclick="saveToPortal()">💾 Uložit do portálu nájemníka</button><button class="btn btn-orange" id="btnEmail" onclick="sendEmail()">📧 Odeslat nájemníkovi e-mailem</button></div><div id="obsahZuctovani"><h1 style="text-align:center;margin-top:0">VYÚČTOVÁNÍ SLUŽEB ZA ROK ${rok}</h1><div class="header-flex"><div><b>Poskytovatel:</b><br>AMK TRABANT PLZEŇ z.s.<br>IČ: 45333637<br>Úslavská 339/2, Plzeň</div><div style="text-align:right"><b>Příjemce (jednotka ${t.unit}):</b><br>${t.name}<br>${t.street||''}<br>${t.zip||''} ${t.city||''}</div></div><div style="text-align:right;font-weight:bold;color:#e74c3c;margin-bottom:10px">Splatnost do: ${dSpl.toLocaleDateString('cs-CZ')}</div><table><thead><tr><th>DRUH SLUŽBY / VÝPOČET</th><th style="text-align:right">NÁKLADY OBJEKTU</th><th style="text-align:right">PODÍL JEDNOTKY</th></tr></thead><tbody>${rowH}</tbody></table><div class="res-box" style="border-color:${vysl>=0?'#27ae60':'#e74c3c'};background:${vysl>=0?'#f0fff4':'#fff5f5'}">VÝSLEDEK: <b style="color:${vysl>=0?'#27ae60':'#e74c3c'}">${vysl>=0?'PŘEPLATEK':'NEDOPLATEK'} ${Math.abs(vysl).toFixed(2)} Kč</b></div><div style="text-align:center">${qr}</div></div><script>const API_URL = "${SCRIPT_URL}";async function saveToPortal() { const btn = document.getElementById('btnSave'); btn.innerText = "Ukládám..."; btn.disabled = true; try { const htmlContent = document.getElementById('obsahZuctovani').outerHTML; const resp = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'saveSettlement', id: ${nextId}, name: "${name}", year: "${rok}", date: "${new Date().toLocaleDateString('cs-CZ')}", html: htmlContent }) }); const res = await resp.json(); if(res.success) { alert("Úspěšně uloženo do portálu!"); btn.innerText = "✓ Uloženo"; } else { alert("Chyba při ukládání."); btn.innerText = "💾 Zkusit uložit znovu"; btn.disabled = false; } } catch(e) { alert("Chyba spojení se serverem."); btn.innerText = "💾 Zkusit uložit znovu"; btn.disabled = false; } }async function sendEmail() { const email = "${tenantEmail}"; if(!email) { alert("Chyba: Tento nájemník nemá v kartě vyplněný e-mail!"); return; } const btn = document.getElementById('btnEmail'); btn.innerText = "Odesílám..."; btn.disabled = true; try { const htmlContent = document.getElementById('obsahZuctovani').outerHTML; const resp = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'sendSettlementEmail', email: email, subject: "${emailSubject}", body: htmlContent }) }); const res = await resp.json(); if(res.success) { alert("Úspěšně odesláno na " + email); btn.innerText = "✓ Odesláno e-mailem"; } else { alert("Chyba při odesílání."); btn.innerText = "📧 Zkusit odeslat znovu"; btn.disabled = false; } } catch(e) { alert("Chyba spojení se serverem."); btn.innerText = "📧 Zkusit odeslat znovu"; btn.disabled = false; } }<\/script></body></html>`);
         w.document.close();
     }
-
-    // Pomocná funkce pro generování QR kódu pro doplatek v nájemnickém portálu
-    function generateDoplatekQR(castka, mesicIdx, jednotka) {
-    const currentYear = new Date().getFullYear().toString();
-    const vs = currentYear + "9900" + String(jednotka || "").replace(/\D/g,"").padStart(2,'0');
-    
-    // Najdeme index měsíce (např. "Duben" -> 4)
-    const mIndex = mesiceNázvy.indexOf(mesicIdx); 
-    const zprava = `Doplatek ${mIndex}/${currentYear}`; 
-    
-    const qrUrl = `https://api.paylibo.com/paylibo/generator/czech/image?accountNumber=2401555604&bankCode=2010&amount=${castka}&vs=${vs}&currency=CZK&message=${encodeURIComponent(zprava)}`;
-
-    // ... zbytek funkce window.open (stejný jako minule) ...
-    const w = window.open("", "_blank", "width=420,height=580");
-    w.document.write(`<html><body style="font-family:sans-serif; text-align:center; padding:20px;">
-        <h3>Úhrada nedoplatku - ${mesicIdx}</h3>
-        <img src="${qrUrl}" style="max-width:250px; margin:20px 0;">
-        <div style="background:#f8f9fa; padding:15px; border-radius:8px; text-align:left; border:1px solid #ddd;">
-            <b>Částka:</b> ${castka} Kč<br><b>VS:</b> ${vs}<br><b>Zpráva:</b> ${zprava}
-        </div>
-        <button onclick="window.close()" style="margin-top:20px; padding:10px 20px;">Zavřít</button>
-    </body></html>`);
-    w.document.close();
-}
 
     function previewSharedCosts() {
         const y = document.getElementById('shared-year').value; const sh = calculateTenantShares(y); if(!sh) return alert("Data nejsou.");
