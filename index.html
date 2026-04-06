@@ -116,7 +116,7 @@
                         <h3 style="color:#3498db">1. Vodné a Stočné</h3>
                         <div id="voda-segments"></div>
                         <button class="btn btn-gray btn-small" onclick="addVodaRow()">+ Přidat úsek faktury</button>
-                        
+                        <br>
                         <div style="background:#eef7ff; padding:8px; border-radius:4px; font-weight:bold; margin-bottom:10px; margin-top: 10px;">
                             Celkem s DPH: <span id="sc-voda-celkem-cena">0</span> Kč / <span id="sc-voda-celkem-m3">0</span> m³<br>
                             Průměrná cena s DPH: <span id="sc-voda-prumer" style="color:#2980b9; font-size: 1.1em;">0</span> Kč/m³
@@ -130,7 +130,7 @@
                         <p style="font-size:11px; color:#666; margin-top:-5px">Rozpočítá se automaticky podle zadané plochy (m²).</p>
                         <div id="srazky-segments"></div>
                         <button class="btn btn-gray btn-small" onclick="addSrazkyRow()">+ Přidat úsek faktury</button>
-                        
+                        <br>
                         <div style="background:#eef7ff; padding:8px; border-radius:4px; font-weight:bold; margin-bottom:10px; margin-top: 10px;">
                             Celkem srážkovné: <span id="sc-srazky-celkem-cena" style="color:#2980b9; font-size: 1.1em;">0</span> Kč
                         </div>
@@ -167,12 +167,12 @@
                             </div>
                             <label>Celková fakturovaná cena (Kč)</label>
                             <input type="number" id="sc-ele-celkem-cena" oninput="calcEleSazba()">
-                            
+                            <br>
                             <div style="background:#eef7ff; padding:8px; border-radius:4px; font-weight:bold; margin-bottom:10px;">
                                 Vypočtená sazba: <span id="sc-ele-sazba-display" style="color:#f39c12; font-size: 1.1em;">0</span> Kč/kWh
                             </div>
                             <input type="hidden" id="sc-ele-sazba">
-                            
+                            <br>
                             <label>Rozúčtovat rovným dílem mezi:</label>
                             <div class="tenant-list" id="list-ele"></div>
                         </div>
@@ -259,7 +259,7 @@
             <div><label>Počet osob / Zam.</label><input type="number" id="f-pocetosob"></div>
         </div>
         
-        <label>Platnost smlouvy do</label><input type="date" id="f-platnostdo">
+        <label>Platnost smlouvy do</label><input type="date" id="f-platnostdo"><br><br>
 
         <div id="meterSection" style="background:#f8f9fa; padding:15px; border-radius:6px; margin-bottom:15px"></div>
 
@@ -699,7 +699,7 @@
         tabulkaHtml += `<tr>
             <td><b>Vodné a stočné</b><br><small>Vodoměr: ${mStart} -> ${mEnd} m³</small></td>
             <td style="text-align:right">${Number(sc.voda.cena).toFixed(2)} Kč / ${sc.voda.m3} m³</td>
-            <td style="text-align:right"><b>${podil.voda.toFixed(2)} Kč</b><br><small>(${mSpotreba} m³)</small></td>
+            <td style="text-align:right"><b>${podil.voda.toFixed(2)} Kč</b><br><small>(${mSpotreba.toFixed(2)} m³)</small></td>
         </tr>`;
     }
 
@@ -727,9 +727,8 @@
 
     // 4. Odpady (Čistá Plzeň) - jen pokud je zaškrtnut
     if (isChecked('odpadyCP')) {
-        const cpPodil = podil.odpadyCP || 0; // Předpokládá výpočet v calculateTenantShares
-        // Pokud calculateTenantShares sčítá odpady do jedné položky 'odpady', použijeme podíl vypočtený tam, ale jen pokud je v seznamu
-        const odpadyCastka = (sc.odpadyCP.cena / sc.odpadyCP.tenants.length); // Zjednodušený náhled pro tabulku, pokud je rovným dílem
+        const cpPodil = podil.odpadyCP || 0; 
+        const odpadyCastka = (sc.odpadyCP.cena / sc.odpadyCP.tenants.length); 
         tabulkaHtml += `<tr>
             <td><b>Odpady (Čistá Plzeň)</b><br><small>Dle osob: ${t.pocetosob}</small></td>
             <td style="text-align:right">${Number(sc.odpadyCP.cena).toFixed(2)} Kč</td>
@@ -776,6 +775,10 @@
     const celkNaklady = indNaklady + podil.celkem;
     const vysledek = celkemVybranoNaZalohach - celkNaklady;
 
+    // Datum splatnosti 14 dní
+    const dSplatnosti = new Date();
+    dSplatnosti.setDate(dSplatnosti.getDate() + 14);
+
     let qrHtml = "";
     if (vysledek < 0) {
         const dluznaCastka = Math.abs(vysledek);
@@ -811,6 +814,7 @@
                 <div><b>Poskytovatel:</b><br>AMK TRABANT PLZEŇ z.s.<br>Úslavská 339/2, Plzeň</div>
                 <div style="text-align:right;"><b>Příjemce (jednotka ${t.unit}):</b><br>${t.name}<br>${t.street || ''} ${t.city || ''}</div>
             </div>
+            <div style="text-align:right; font-weight:bold;">Datum splatnosti: ${dSplatnosti.toLocaleDateString('cs-CZ')}</div>
             <div class="section-title">PODROBNÝ ROZPIS NÁKLADŮ</div>
             <table>
                 <thead><tr><th>DRUH SLUŽBY / NÁKLADU</th><th style="text-align:right">CELÝ OBJEKT (INFO)</th><th style="text-align:right">NÁKLAD JEDNOTKY (B)</th></tr></thead>
