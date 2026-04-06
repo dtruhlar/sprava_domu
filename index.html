@@ -258,7 +258,13 @@
             <div><label>Měsíční zálohy (Kč)</label><input type="number" id="f-zalohy"></div>
         </div>
         
-        <label>Platnost smlouvy do</label><input type="date" id="f-platnostdo">
+        <div class="grid" style="margin-bottom: 15px;">
+            <div><label>Datum původní smlouvy</label><input type="date" id="f-datum_smlouvy"></div>
+            <div><label>Platnost smlouvy do</label><input type="date" id="f-platnostdo"></div>
+        </div>
+        <div class="grid" style="margin-bottom: 15px;">
+            <div><label>Pořadové číslo dodatku</label><input type="number" id="f-dodatek" placeholder="např. 1, 2..."></div>
+        </div>
 
         <div id="meterSection" style="background:#f8f9fa; padding:15px; border-radius:6px; margin-bottom:15px"></div>
 
@@ -401,6 +407,8 @@
             document.getElementById('f-telefon').value = t.telefon || ""; document.getElementById('f-najem').value = t.najem || 0;
             document.getElementById('f-zalohy').value = t.zalohy || 0;
             
+            document.getElementById('f-dodatek').value = t.dodatek || "";
+            
             document.getElementById('osm-container').innerHTML = "";
             try {
                 let osmData = t.osm_history || t.osmhistory || t.osm_hystory || "[]";
@@ -427,6 +435,23 @@
                     document.getElementById('f-platnostdo').value = `${yyyy}-${mm}-${dd}`;
                 }
             }
+
+            if (t.datum_smlouvy) {
+                let dStr = String(t.datum_smlouvy).trim();
+                let pd = new Date(dStr);
+                if (dStr.includes('.')) {
+                    let parts = dStr.replace(/\s/g, '').split('.');
+                    if (parts.length === 3) {
+                        pd = new Date(`${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`);
+                    }
+                }
+                if (!isNaN(pd.getTime())) {
+                    let yyyy = pd.getFullYear();
+                    let mm = String(pd.getMonth() + 1).padStart(2, '0');
+                    let dd = String(pd.getDate()).padStart(2, '0');
+                    document.getElementById('f-datum_smlouvy').value = `${yyyy}-${mm}-${dd}`;
+                }
+            }
             
             const mHist = (DATA.meters || []).filter(m => {
                 return String(m.name).toLowerCase() === String(t.name).toLowerCase() && !isNaN(parseFloat(String(m.koncovy).replace(',', '.')));
@@ -437,6 +462,115 @@
         
         if (document.getElementById('c-typ')) document.getElementById('c-typ').value = 'naklad';
         document.getElementById('modal').style.display = 'block';
+    }
+
+    function generateAddendum(t, chNajem, chZalohy, chPlatnost) {
+        const today = new Date();
+        const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+        const effDateStr = nextMonth.toLocaleDateString('cs-CZ');
+        const todayStr = today.toLocaleDateString('cs-CZ');
+
+        let origDate = "Nezadáno";
+        if (t.datum_smlouvy) {
+            const d = new Date(t.datum_smlouvy);
+            if (!isNaN(d.getTime())) origDate = `${d.getDate()}. ${d.getMonth() + 1}. ${d.getFullYear()}`;
+        }
+        
+        const dodatekNum = t.dodatek || "1";
+
+        let part3 = "";
+        if (chPlatnost && t.platnostdo) {
+            const pDateParts = t.platnostdo.split('-');
+            const pDate = `${parseInt(pDateParts[2])}. ${parseInt(pDateParts[1])}. ${pDateParts[0]}`;
+            part3 = `
+            <h3>III.<br>Doba nájmu</h3>
+            <p>Nájem bytu se uzavírá na dobu určitou a to do <b>${pDate}</b>.</p>
+            `;
+        }
+
+        let part4 = "";
+        if (chNajem || chZalohy) {
+            part4 = `
+            <h3>IV.<br>Nájemné a způsob úhrady</h3>
+            <p>Nájemné je stanoveno dohodou smluvních stran ve výši <b>${t.najem},- Kč / měsíc</b>.</p>
+            <p>Služby spojené s užíváním bytu jsou hrazeny zálohově ve výši <b>${t.zalohy},- Kč / měsíčně</b>, vždy společně s úhradou nájemného.</p>
+            <p>Ostatní ujednání ohledně valorizace nájemného zůstávají v platnosti dle původní smlouvy.</p>
+            `;
+        }
+
+        const tenantIdInfo = t.typ === 'komerce' ? `IČO: ${t.ico}<br>zastoupena: ${t.jednatel}` : `Narozen/a: ..............................`;
+        const tenantName = t.typ === 'komerce' ? `<b>${t.name}</b>` : `pan/paní <b>${t.name}</b>`;
+
+        const html = `
+        <html>
+        <head>
+            <title>Dodatek č. ${dodatekNum} - ${t.name}</title>
+            <style>
+                body { font-family: 'Times New Roman', Times, serif; padding: 40px; max-width: 800px; margin: auto; line-height: 1.5; font-size: 16px; }
+                h2 { text-align: center; font-size: 20px; }
+                h3 { text-align: center; font-size: 16px; margin-top: 30px; margin-bottom: 10px; font-weight: bold; }
+                p { text-align: justify; margin-bottom: 10px; margin-top: 0; }
+                .signatures { display: flex; justify-content: space-between; margin-top: 80px; }
+                .sig-box { width: 45%; text-align: center; }
+                .sig-line { border-bottom: 1px dotted #000; margin-bottom: 5px; height: 40px; }
+                @media print { body { padding: 0; } .no-print { display: none; } }
+            </style>
+        </head>
+        <body>
+            <div class="no-print" style="text-align: center; margin-bottom: 20px; padding: 15px; background: #f4f7f6; border-radius: 8px;">
+                <button onclick="window.print()" style="padding: 10px 20px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">🖨️ Vytisknout dodatek</button>
+            </div>
+
+            <h2>Dodatek č. ${dodatekNum} k nájemní smlouvě<br>ze dne ${origDate}</h2>
+            
+            <p style="margin-top: 30px;">Níže uvedeného dne, měsíce, roku uzavřeli:</p>
+
+            <p>
+                <b>Spolek AMK Trabant Plzeň z.s.</b>, IČ: 45333637,<br>
+                se sídlem: Úslavská 339/2, Východní předměstí, 326 00 Plzeň,<br>
+                zastoupená předsedou panem Jiřím Vachtlem,<br>
+                <i>(dále jen „pronajímatel“)</i>
+            </p>
+            <p style="text-align:center;"><b>a</b></p>
+            <p>
+                ${tenantName},<br>
+                ${tenantIdInfo}<br>
+                bytem/sídlem: ${t.street}, ${t.zip} ${t.city}<br>
+                <i>(dále jen „nájemce“)</i><br>
+            </p>
+            <p style="text-align:center; font-style: italic; margin-top: 20px;">(ve smlouvě společně dále jen jako „smluvní strany“)</p>
+
+            <h2 style="margin-top:40px;">tento<br>Dodatek k nájemní smlouvě</h2>
+            <p style="text-align:center;">k jednotce (dveře č. ${t.unit}), ve druhém patře bytového domu na adrese Úslavská 339/2, 326 00 Plzeň.</p>
+
+            ${part3}
+            ${part4}
+
+            <p style="margin-top: 40px;">Ostatní ustanovení nájemní smlouvy zůstávají nadále v platnosti beze změn.</p>
+            <p>Dodatek č. ${dodatekNum} k nájemní smlouvě se sjednává s účinností od <b>${effDateStr}</b>. Vyhotovuje se ve dvou stejnopisech a stává se nedílnou součástí nájemní smlouvy ze dne ${origDate}.</p>
+
+            <p style="margin-top: 40px;">V Plzni dne ${todayStr}</p>
+
+            <div class="signatures">
+                <div class="sig-box">
+                    <p style="text-align:left;">Pronajímatel:</p>
+                    <div class="sig-line"></div>
+                    <b>AMK Trabant Plzeň z.s.</b><br>
+                    zastoupený předsedou Jiřím Vachtlem
+                </div>
+                <div class="sig-box">
+                    <p style="text-align:left;">Nájemce:</p>
+                    <div class="sig-line"></div>
+                    ${tenantName}
+                </div>
+            </div>
+        </body>
+        </html>
+        `;
+
+        const w = window.open("", "_blank");
+        w.document.write(html);
+        w.document.close();
     }
 
     async function handleSave() {
@@ -450,6 +584,18 @@
 
         const btn = document.getElementById('saveBtn'); btn.innerText = "Ukládám...";
         const isNew = !document.getElementById('f-rowidx').value;
+        const rowIdx = document.getElementById('f-rowidx').value;
+        
+        let changedNajem = false, changedZalohy = false, changedPlatnost = false;
+        
+        if (!isNew) {
+            const orig = DATA.tenants.find(x => String(x.rowidx) === String(rowIdx));
+            if (orig) {
+                if (Number(orig.najem || 0) !== Number(document.getElementById('f-najem').value || 0)) changedNajem = true;
+                if (Number(orig.zalohy || 0) !== Number(document.getElementById('f-zalohy').value || 0)) changedZalohy = true;
+                if ((orig.platnostdo || "") !== (document.getElementById('f-platnostdo').value || "")) changedPlatnost = true;
+            }
+        }
         
         let mStartVal = document.getElementById('f-meterStart')?.value || "";
         let mEndVal = document.getElementById('f-meterEnd')?.value || "";
@@ -467,11 +613,19 @@
             rowidx: document.getElementById('f-rowidx').value, typ: document.getElementById('f-typ').value, name: document.getElementById('f-name').value, jednatel: document.getElementById('f-jednatel').value, ico: document.getElementById('f-ico').value, dph: document.getElementById('f-dph').checked ? "Ano" : "Ne", plocha: document.getElementById('f-plocha').value, unit: document.getElementById('f-unit').value, vs: document.getElementById('f-vs').value, street: document.getElementById('f-street').value, city: document.getElementById('f-city').value, zip: document.getElementById('f-zip').value, email: document.getElementById('f-email').value, telefon: document.getElementById('f-telefon').value, najem: document.getElementById('f-najem').value, zalohy: document.getElementById('f-zalohy').value, 
             osm_history: JSON.stringify(osmRows),
             platnostdo: document.getElementById('f-platnostdo').value, 
+            dodatek: document.getElementById('f-dodatek').value,
+            datum_smlouvy: document.getElementById('f-datum_smlouvy').value,
             meterStart: mStartVal, 
             meterEnd: mEndVal
         };
         const resp = await fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify({action:'saveTenant', payload:p}) });
         DATA = await resp.json(); renderAdminTable(); closeModal(); btn.innerText = "Uložit celou kartu";
+
+        if (changedNajem || changedZalohy || changedPlatnost) {
+            if (confirm("Byly zjištěny změny ve výši nájmu, záloh nebo doby platnosti. Chcete nyní vygenerovat Dodatek k nájemní smlouvě?")) {
+                generateAddendum(p, changedNajem, changedZalohy, changedPlatnost);
+            }
+        }
     }
 
     async function saveOnlyCost() {
