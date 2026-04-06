@@ -509,19 +509,63 @@
         }
     }
     async function saveSharedCosts() {
-        const y = document.getElementById('shared-year').value; const existing = (DATA.sharedCosts || []).find(s => s.year == y);
-        const p = {
-            id: existing ? "" : getNextId(DATA.sharedCosts),
-            voda: { cena: document.getElementById('sc-voda-celkem-cena').innerText, m3: document.getElementById('sc-voda-celkem-m3').innerText, segments: Array.from(document.querySelectorAll('.voda-row')).map(r => ({cena: r.querySelector('.v-cena').value, dph: r.querySelector('.v-dph').value, m3: r.querySelector('.v-m3').value})), tenants: Array.from(document.querySelectorAll('.chk-voda:checked')).map(c => c.value) },
-            srazky: { cena: document.getElementById('sc-srazky-celkem-cena').innerText, segments: Array.from(document.querySelectorAll('.srazky-row')).map(r => ({cena: r.querySelector('.s-cena').value, m3: r.querySelector('.s-m3').value})), tenants: Array.from(document.querySelectorAll('.chk-srazky:checked')).map(c => c.value) },
-            ele: { hlavniStart: document.getElementById('sc-ele-hlavni-start').value, hlavniEnd: document.getElementById('sc-ele-hlavni-end').value, podruznyStart: document.getElementById('sc-ele-podruzny-start').value, podruznyEnd: document.getElementById('sc-ele-podruzny-end').value, cenaCelkem: document.getElementById('sc-ele-celkem-cena').value, sazba: document.getElementById('sc-ele-sazba').value, tenants: Array.from(document.querySelectorAll('.chk-ele:checked')).map(c => c.value) },
-            odpadyCP: { cena: document.getElementById('sc-odpadyCP-cena').value, tenants: Array.from(document.querySelectorAll('.chk-odpadyCP:checked')).map(c => c.value) },
-            odpadyAVE: { cena: document.getElementById('sc-odpadyAVE-cena').value, tenants: Array.from(document.querySelectorAll('.chk-odpadyAVE:checked')).map(c => c.value) },
-            uklid: { cena: document.getElementById('sc-uklid-cena').value, tenants: Array.from(document.querySelectorAll('.chk-uklid:checked')).map(c => c.value) }
-        };
-        const resp = await fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify({action:'saveSharedCosts', year: y, payload:p}) });
-        DATA = await resp.json(); alert("Uloženo.");
-    }
+    const y = document.getElementById('shared-year').value;
+    if(!y) { alert("Zadejte rok!"); return; }
+
+    const existing = (DATA.sharedCosts || []).find(s => s.year == y);
+    
+    // 1. Vygenerujeme ID (pokud neexistuje)
+    const newId = existing ? existing.id : getNextId(DATA.sharedCosts);
+
+    // 2. Připravíme balík dat (ten jde do 3. sloupečku)
+    const payloadData = {
+        voda: { 
+            cena: document.getElementById('sc-voda-celkem-cena').innerText, 
+            m3: document.getElementById('sc-voda-celkem-m3').innerText, 
+            segments: Array.from(document.querySelectorAll('.voda-row')).map(r => ({
+                cena: r.querySelector('.v-cena').value, 
+                dph: r.querySelector('.v-dph').value, 
+                m3: r.querySelector('.v-m3').value
+            })), 
+            tenants: Array.from(document.querySelectorAll('.chk-voda:checked')).map(c => c.value) 
+        },
+        srazky: { 
+            cena: document.getElementById('sc-srazky-celkem-cena').innerText, 
+            segments: Array.from(document.querySelectorAll('.srazky-row')).map(r => ({
+                cena: r.querySelector('.s-cena').value, 
+                m3: r.querySelector('.s-m3').value
+            })), 
+            tenants: Array.from(document.querySelectorAll('.chk-srazky:checked')).map(c => c.value) 
+        },
+        ele: { 
+            hlavniStart: document.getElementById('sc-ele-hlavni-start').value, 
+            hlavniEnd: document.getElementById('sc-ele-hlavni-end').value, 
+            podruznyStart: document.getElementById('sc-ele-podruzny-start').value, 
+            podruznyEnd: document.getElementById('sc-ele-podruzny-end').value, 
+            cenaCelkem: document.getElementById('sc-ele-celkem-cena').value, 
+            sazba: document.getElementById('sc-ele-sazba').value, 
+            tenants: Array.from(document.querySelectorAll('.chk-ele:checked')).map(c => c.value) 
+        },
+        odpadyCP: { cena: document.getElementById('sc-odpadyCP-cena').value, tenants: Array.from(document.querySelectorAll('.chk-odpadyCP:checked')).map(c => c.value) },
+        odpadyAVE: { cena: document.getElementById('sc-odpadyAVE-cena').value, tenants: Array.from(document.querySelectorAll('.chk-odpadyAVE:checked')).map(c => c.value) },
+        uklid: { cena: document.getElementById('sc-uklid-cena').value, tenants: Array.from(document.querySelectorAll('.chk-uklid:checked')).map(c => c.value) }
+    };
+
+    // 3. POSÍLÁME TO NA SERVER (Pořadí: action, id, year, payload)
+    // Důležité: 'id' a 'year' musí být v rootu toho objektu, aby je Apps Script viděl jako sloupce
+    const response = await fetch(SCRIPT_URL, { 
+        method: 'POST', 
+        body: JSON.stringify({
+            action: 'saveSharedCosts', 
+            id: newId,            // 1. sloupec
+            year: y,             // 2. sloupec
+            payload: payloadData // 3. sloupec (převede se na JSON string)
+        }) 
+    });
+
+    DATA = await response.json(); 
+    alert("Uloženo pod ID: " + newId);
+}
 
     function calculateTenantShares(year) {
         const saved = (DATA.sharedCosts || []).find(s => s.year == year); if(!saved) return null;
