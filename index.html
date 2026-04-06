@@ -397,13 +397,24 @@
             try {
                 let osmData = t.osm_history || t.osmhistory || "[]";
                 let osm = JSON.parse(osmData);
-                if (typeof osm === 'string') osm = JSON.parse(osm); // Ošetření pro dvojitý string z App Scriptu
+                if (typeof osm === 'string') osm = JSON.parse(osm);
                 
                 if(osm.length === 0) addOsmRow();
                 else osm.forEach(r => addOsmRow(r.rok, r.osoby, r.mesice));
             } catch(e) { addOsmRow(); }
 
-            if(t.platnostdo) document.getElementById('f-platnostdo').value = new Date(t.platnostdo).toISOString().split('T')[0];
+            // BEZPEČNÉ NAČÍTÁNÍ DATA BEZ POSUNU ČASOVÝCH PÁSEM
+            if (t.platnostdo) {
+                let pd = new Date(t.platnostdo);
+                if (!isNaN(pd.getTime())) {
+                    let yyyy = pd.getFullYear();
+                    let mm = String(pd.getMonth() + 1).padStart(2, '0');
+                    let dd = String(pd.getDate()).padStart(2, '0');
+                    document.getElementById('f-platnostdo').value = `${yyyy}-${mm}-${dd}`;
+                } else {
+                    document.getElementById('f-platnostdo').value = t.platnostdo;
+                }
+            }
             
             const mHist = (DATA.meters || []).filter(m => String(m.name).toLowerCase() === String(t.name).toLowerCase());
             const last = mHist[mHist.length-1];
@@ -508,7 +519,6 @@
         DATA = await resp.json(); alert("Uloženo pod ID: " + newId);
     }
 
-    // OPRAVENO: Výpočet OSM, robustnější porovnání a parsování
     function calculateTenantShares(year) {
         const saved = (DATA.sharedCosts || []).find(s => String(s.year).trim() === String(year).trim()); 
         if(!saved) return null;
@@ -519,7 +529,7 @@
             try { 
                 let osmData = t.osm_history || t.osmhistory || "[]";
                 let h = JSON.parse(osmData);
-                if (typeof h === 'string') h = JSON.parse(h); // Dvojité parsování pokud to Apps Script obalí do textu
+                if (typeof h === 'string') h = JSON.parse(h); 
                 
                 const filtered = h.filter(r => String(r.rok).trim() === String(year).trim()); 
                 if(filtered.length > 0) {
@@ -560,7 +570,6 @@
         return shares;
     }
 
-    // OPRAVENO: Zrušeno automatické ukládání, přidán ovládací panel do vyskakovacího okna
     async function generateSettlement() {
         const name = document.getElementById('f-name').value;
         const rok = prompt("Zadejte rok vyúčtování:", new Date().getFullYear() - 1); if(!rok) return;
@@ -605,7 +614,6 @@
         const tenantEmail = t.email || "";
         const w = window.open("", "_blank");
 
-        // Skript pro tlačítka - vloží se do nového okna
         w.document.write(`<html>
         <head>
             <title>Vyúčtování ${rok} - ${t.name}</title>
@@ -617,7 +625,6 @@
                 td{padding:12px 10px;border-bottom:1px solid #eee;font-size:14px}
                 .res-box{margin-top:30px;padding:25px;text-align:center;border:2px solid #333;border-radius:8px;font-size:20px}
                 
-                /* Styly pro ovládací panel (tlačítka se při tisku skryjí) */
                 .no-print { text-align: center; margin-bottom: 20px; padding: 15px; background: #fff; border: 1px solid #ddd; border-radius: 8px; max-width: 850px; margin-left: auto; margin-right: auto; }
                 .btn { padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px; margin: 0 5px; color: white; transition: 0.2s; }
                 .btn:hover { opacity: 0.9; }
