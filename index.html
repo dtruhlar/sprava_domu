@@ -498,103 +498,117 @@
     let dobStr = t.datum_narozeni ? new Date(t.datum_narozeni).toLocaleDateString('cs-CZ') : "..........";
     const dodatekNum = t.dodatek || "X";
 
-    // Kompaktní legislativní body dle vzoru 
-    let part3 = chPlatnost ? `
-        <h3 style="margin-top:10px; margin-bottom:2px;">III. Doba nájmu</h3>
-        <p style="margin:0;">Nájem bytu se uzavírá na dobu určitou do <b>${new Date(t.platnostdo).toLocaleDateString('cs-CZ')}</b>.</p>` : "";
+    // Sekce III a IV - upravené pro lepší vzhled
+    let section3 = chPlatnost ? `
+        <div class="section-title">III. Doba nájmu</div>
+        <p>Smluvní strany se dohodly na změně doby trvání nájmu. Nájem bytu se uzavírá na dobu určitou, a to do <b>${new Date(t.platnostdo).toLocaleDateString('cs-CZ')}</b>.</p>` : "";
 
-    let part4 = (chNajem || chZalohy) ? `
-        <h3 style="margin-top:10px; margin-bottom:2px;">IV. Nájemné a způsob úhrady</h3>
-        <p style="margin:0;">Nájemné je stanoveno ve výši <b>${t.najem},- Kč / měsíc</b>. Služby spojené s užíváním bytu jsou hrazeny zálohově ve výši <b>${t.zalohy},- Kč / měsíčně</b>.</p>` : "";
+    let section4 = (chNajem || chZalohy) ? `
+        <div class="section-title">IV. Nájemné a zálohy na služby</div>
+        <p>S účinností tohoto dodatku se mění výše úhrad následovně:</p>
+        <ul>
+            <li>Měsíční nájemné činí: <b>${t.najem},- Kč</b></li>
+            <li>Měsíční záloha na služby činí: <b>${t.zalohy},- Kč</b></li>
+        </ul>
+        <p>Celková měsíční platba činí <b>${Number(t.najem) + Number(t.zalohy)},- Kč</b> a je splatná dle podmínek původní smlouvy.</p>` : "";
 
     const html = `
     <html>
     <head>
         <title>Dodatek č. ${dodatekNum} - ${t.name}</title>
         <style>
-            @page { size: A4; margin: 1.5cm 2cm; }
-            body { font-family: 'Times New Roman', Times, serif; font-size: 11.5pt; line-height: 1.3; color: #000; margin: 0; padding: 0; }
-            h2 { text-align: center; font-size: 14pt; text-transform: uppercase; margin-bottom: 15px; margin-top: 0; }
-            h3 { text-align: center; font-size: 11.5pt; font-weight: bold; margin-top: 15px; margin-bottom: 5px; }
-            p { text-align: justify; margin-bottom: 8px; }
-            .parties { margin-bottom: 15px; }
-            .signatures { display: flex; justify-content: space-between; margin-top: 40px; }
-            .sig-box { width: 45%; text-align: center; }
-            .sig-line { border-bottom: 1px dotted #000; margin-bottom: 5px; height: 35px; }
-            .no-print { text-align: center; background: #f4f7f6; padding: 10px; border-bottom: 1px solid #ddd; margin-bottom: 10px; }
-            .btn { padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px; margin: 0 5px; color: white; }
-            @media print { .no-print { display: none; } }
+            @page { size: A4; margin: 2cm; }
+            body { font-family: 'Times New Roman', serif; font-size: 11pt; line-height: 1.4; color: #000; margin: 0; padding: 0; }
+            .no-print { text-align: center; background: #f1f3f4; padding: 15px; border-bottom: 1px solid #ccc; margin-bottom: 20px; }
+            .btn { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin: 0 5px; color: white; transition: 0.2s; }
+            
+            .doc-header { text-align: center; font-size: 14pt; font-weight: bold; text-transform: uppercase; margin-bottom: 25px; border-bottom: 1px solid #000; padding-bottom: 10px; }
+            .section-title { text-align: center; font-weight: bold; margin-top: 20px; margin-bottom: 8px; text-decoration: underline; }
+            .parties-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+            .parties-table td { vertical-align: top; padding: 5px 0; }
+            
+            p { text-align: justify; margin: 10px 0; }
+            ul { margin: 10px 0 10px 25px; padding: 0; }
+            
+            .sig-table { width: 100%; margin-top: 50px; }
+            .sig-table td { width: 50%; text-align: center; padding-top: 40px; }
+            .sig-line { width: 80%; border-top: 1px dotted #000; margin: 0 auto 5px auto; }
+            
+            @media print { .no-print { display: none; } body { margin: 0; } }
         </style>
     </head>
     <body>
         <div class="no-print">
-            <button class="btn" style="background:#3498db" onclick="window.print()">🖨️ Vytisknout (PDF/A4)</button>
-            <button class="btn" style="background:#e67e22" id="btnDrive" onclick="saveToDrive()">☁️ Uložit na Disk</button>
-            <button class="btn" style="background:#27ae60" id="btnPortal" onclick="saveToPortal()">📁 Do Portálu</button>
+            <button class="btn" style="background:#3498db" onclick="window.print()">🖨️ TISK / ULOŽIT PDF</button>
+            <button class="btn" style="background:#e67e22" id="btnDrive" onclick="saveToDrive()">☁️ NA GOOGLE DISK</button>
+            <button class="btn" style="background:#27ae60" id="btnPortal" onclick="saveToPortal()">📁 DO PORTÁLU</button>
         </div>
 
-        <h2>Dodatek č. ${dodatekNum} k nájemní smlouvě ze dne ${origDate}</h2>
-        
-        <div class="parties">
-            <p>Níže uvedeného dne, měsíce a roku smluvní strany:</p>
-            <p style="margin-bottom:0;"><b>Spolek AMK Trabant Plzeň z.s.</b>, IČ: 45333637,</p>
-            <p style="margin-top:0; margin-bottom:0;">se sídlem: Úslavská 339/2, Východní předměstí, 326 00 Plzeň, zastoupený předsedou Jiřím Vachtlem (dále jen „pronajímatel“)</p>
-            <p style="text-align:center; margin: 5px 0;"><b>a</b></p>
-            <p style="margin-bottom:0;"><b>${t.name}</b>, narozen/a ${dobStr},</p>
-            <p style="margin-top:0;">bytem: ${t.street}, ${t.zip} ${t.city} (dále jen „nájemce“)</p>
-        </div>
+        <div class="doc-header">Dodatek č. ${dodatekNum} k nájemní smlouvě</div>
+        <p style="text-align:center; margin-top:-20px; margin-bottom:25px;">uzavřené dne ${origDate}</p>
 
-        <p style="text-align:center; font-style: italic;">uzavírají k jednotce (dveře č. ${t.unit}) na adrese Úslavská 339/2, Plzeň tento dodatek:</p>
+        <p><b>1. Pronajímatel:</b><br>
+        AMK Trabant Plzeň z.s., IČ: 45333637, se sídlem Úslavská 339/2, 326 00 Plzeň,<br>
+        zastoupený předsedou Jiřím Vachtlem</p>
 
-        ${part3}
-        ${part4}
+        <p style="text-align:center; font-weight:bold; margin: 10px 0;">a</p>
 
-        <h3 style="margin-top:15px; margin-bottom:5px;">V. Závěrečná ustanovení</h3>
-        <p>Ostatní ustanovení nájemní smlouvy zůstávají nadále v platnosti beze změn. Tento dodatek se vyhotovuje ve dvou stejnopisech, z nichž každá strana obdrží jeden. Dodatek nabývá účinnosti dnem <b>${effDateStr}</b>.</p>
+        <p><b>2. Nájemce:</b><br>
+        <b>${t.name}</b>, narozen/a: ${dobStr},<br>
+        bytem: ${t.street}, ${t.zip} ${t.city}</p>
 
-        <p style="margin-top: 20px;">V Plzni dne ${todayStr}</p>
+        <p style="margin-top: 25px;">Smluvní strany se dohodly na tomto znění dodatku k nájemní smlouvě k jednotce č. <b>${t.unit}</b>:</p>
 
-        <div class="signatures">
-            <div class="sig-box">
-                <p style="text-align:left; font-size: 10pt;">Pronajímatel:</p>
-                <div class="sig-line"></div>
-                <b>AMK Trabant Plzeň z.s.</b><br><small>Jiří Vachtl</small>
-            </div>
-            <div class="sig-box">
-                <p style="text-align:left; font-size: 10pt;">Nájemce:</p>
-                <div class="sig-line"></div>
-                <b>${t.name}</b>
-            </div>
-        </div>
+        ${section3}
+        ${section4}
+
+        <div class="section-title">V. Závěrečná ustanovení</div>
+        <p>Ostatní ujednání původní nájemní smlouvy, která nejsou tímto dodatkem dotčena, zůstávají v platnosti v původním znění. Tento dodatek je sepsán ve dvou vyhotoveních s platností originálu, z nichž každá strana obdrží po jednom. Účinnost dodatku nastává dnem <b>${effDateStr}</b>.</p>
+
+        <p style="margin-top: 30px;">V Plzni dne ${todayStr}</p>
+
+        <table class="sig-table">
+            <tr>
+                <td>
+                    <div class="sig-line"></div>
+                    <b>AMK Trabant Plzeň z.s.</b><br>(pronajímatel)
+                </td>
+                <td>
+                    <div class="sig-line"></div>
+                    <b>${t.name}</b><br>(nájemce)
+                </td>
+            </tr>
+        </table>
 
         <script>
             const API_URL = "${SCRIPT_URL}";
+            function getCleanHTML() {
+                let clone = document.documentElement.cloneNode(true);
+                let np = clone.querySelector('.no-print'); if(np) np.remove();
+                let scs = clone.querySelectorAll('script'); scs.forEach(s => s.remove());
+                return clone.outerHTML;
+            }
             async function saveToDrive() {
                 const btn = document.getElementById('btnDrive');
                 btn.innerText = "Ukládám..."; btn.disabled = true;
-                let clone = document.documentElement.cloneNode(true);
-                let np = clone.querySelector('.no-print'); if(np) np.remove();
-                let scs = clone.querySelectorAll('script'); scs.forEach(s => s.remove());
-                const resp = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'saveAddendumToDrive', name: "${t.name}", dodatekNum: "${dodatekNum}", html: clone.outerHTML })});
+                const resp = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'saveAddendumToDrive', name: "${t.name}", dodatekNum: "${dodatekNum}", html: getCleanHTML() })});
                 const res = await resp.json();
-                alert(res.success ? "Dodatek byl uložen na Google Disk." : "Chyba: " + res.error);
-                btn.innerText = "☁️ Na Disk"; btn.disabled = false;
+                alert(res.success ? "Uloženo na Disk." : "Chyba: " + res.error);
+                btn.innerText = "☁️ NA GOOGLE DISK"; btn.disabled = false;
             }
             async function saveToPortal() {
                 const btn = document.getElementById('btnPortal');
-                btn.innerText = "Odesílám..."; btn.disabled = true;
-                let clone = document.documentElement.cloneNode(true);
-                let np = clone.querySelector('.no-print'); if(np) np.remove();
-                let scs = clone.querySelectorAll('script'); scs.forEach(s => s.remove());
-                const resp = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'saveAddendumToPortal', name: "${t.name}", dodatekNum: "${dodatekNum}", html: clone.outerHTML })});
-                alert("Dodatek byl odeslán do portálu nájemníka.");
-                btn.innerText = "📁 Do Portálu"; btn.disabled = false;
+                btn.innerText = "Posílám..."; btn.disabled = true;
+                const resp = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'saveAddendumToPortal', name: "${t.name}", dodatekNum: "${dodatekNum}", html: getCleanHTML() })});
+                alert("Dodatek uložen do portálu.");
+                btn.innerText = "📁 DO PORTÁLU"; btn.disabled = false;
             }
         <\/script>
     </body></html>`;
     const w = window.open("", "_blank");
     w.document.write(html); w.document.close();
-}function generateAddendum(t, chNajem, chZalohy, chPlatnost) {
+}
+    function generateAddendum(t, chNajem, chZalohy, chPlatnost) {
     const today = new Date();
     const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
     const effDateStr = nextMonth.toLocaleDateString('cs-CZ');
