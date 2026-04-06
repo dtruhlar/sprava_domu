@@ -263,13 +263,22 @@
         <div id="meterSection" style="background:#f8f9fa; padding:15px; border-radius:6px; margin-bottom:15px"></div>
 
         <div style="background: #eef7ff; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
-            <h4 style="margin:0 0 10px 0;">Přidat mimořádný náklad (jen pro tuto jednotku)</h4>
-            <label>Popis opravy / služby</label><input type="text" id="c-desc">
+            <h4 style="margin:0 0 10px 0;">Mimořádné položky (jen pro tuto jednotku)</h4>
             <div class="grid">
+                <div>
+                    <label>Typ položky</label>
+                    <select id="c-typ" style="margin-bottom:0">
+                        <option value="naklad">Mimořádný náklad (k tíži nájemníka)</option>
+                        <option value="zaloha">Mimořádná záloha (k dobru nájemníka)</option>
+                    </select>
+                </div>
+                <div><label>Popis / Důvod</label><input type="text" id="c-desc" style="margin-bottom:0"></div>
+            </div>
+            <div class="grid" style="margin-top:15px">
                 <div><label>Částka (Kč)</label><input type="number" id="c-price"></div>
                 <div><label>Datum</label><input type="date" id="c-date"></div>
             </div>
-            <button class="btn btn-blue" style="width:100%" onclick="saveOnlyCost()">Zapsat mimořádný náklad</button>
+            <button class="btn btn-blue" style="width:100%" onclick="saveOnlyCost()">Zapsat položku do systému</button>
         </div>
 
         <div class="grid">
@@ -425,6 +434,8 @@
             const last = mHist.length > 0 ? mHist[mHist.length-1] : null;
             document.getElementById('meterSection').innerHTML = last ? `<div class="grid"><div><label>Minulý stav vodoměru</label><input id="f-meterStart" value="${last.koncovy}" readonly style="background:#eee"></div><div><label>Nový stav vodoměru</label><input type="number" id="f-meterEnd"></div></div>` : `<label>Počáteční stav vodoměru</label><input type="number" id="f-meterStart">`;
         }
+        
+        if (document.getElementById('c-typ')) document.getElementById('c-typ').value = 'naklad';
         document.getElementById('modal').style.display = 'block';
     }
 
@@ -464,7 +475,13 @@
     }
 
     async function saveOnlyCost() {
-        const p = { id: getNextId(DATA.costs), name: document.getElementById('f-name').value, desc: document.getElementById('c-desc').value, price: document.getElementById('c-price').value, date: document.getElementById('c-date').value, year: new Date(document.getElementById('c-date').value).getFullYear() };
+        let desc = document.getElementById('c-desc').value;
+        const typ = document.getElementById('c-typ').value;
+        if (typ === 'zaloha') {
+            desc = "[EXTRA_ZÁLOHA] " + desc;
+        }
+
+        const p = { id: getNextId(DATA.costs), name: document.getElementById('f-name').value, desc: desc, price: document.getElementById('c-price').value, date: document.getElementById('c-date').value, year: new Date(document.getElementById('c-date').value).getFullYear() };
         const resp = await fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify({action:'addCost', payload:p}) });
         DATA = await resp.json(); alert("Uloženo.");
     }
@@ -573,7 +590,6 @@
             if(sc.srazky.tenants.includes("AMK TRABANT PLZEŇ z.s.")) shares["AMK TRABANT PLZEŇ z.s."].srazky = (TOTAL_AREA - uziv) * pM;
         }
 
-        // OPRAVA 1: Odečtení elektřiny ze zasedačky PRO VÝPOČET PODÍLŮ
         ['ele', 'odpadyCP', 'odpadyAVE', 'uklid'].forEach(l => {
             if(sc[l] && sc[l].tenants && sc[l].tenants.length > 0) {
                 const totalOSM = getSumOSM(sc[l].tenants);
@@ -620,7 +636,6 @@
         }
         if(podil.srazky > 0 && isChecked('srazky')) rowH += `<tr><td><b>Srážkovné</b><br><small>Plocha jednotky: ${t.plocha} m²</small></td><td style="text-align:right">${Number(sc.srazky.cena).toFixed(2)} Kč</td><td style="text-align:right"><b>${podil.srazky.toFixed(2)} Kč</b></td></tr>`;
         
-        // OPRAVA 2: Zobrazení SPRÁVNÉ (ponížené) částky objektu ve faktuře (vyúčtování)
         if(podil.ele > 0 && isChecked('ele')) {
             const diffkWh = (Number(sc.ele.hlavniEnd) - Number(sc.ele.hlavniStart)) - (Number(sc.ele.podruznyEnd) - Number(sc.ele.podruznyStart));
             const spolCenaEle = diffkWh > 0 ? (diffkWh * Number(sc.ele.sazba)) : 0;
@@ -634,11 +649,33 @@
         });
         if(podil.uklid > 0 && isChecked('uklid')) rowH += `<tr><td><b>Úklid spol. prostor</b><br><small>Dle OSM (${rok}): ${podil.mojeOSM}</small></td><td style="text-align:right">${Number(sc.uklid.cena).toFixed(2)} Kč</td><td style="text-align:right"><b>${podil.uklid.toFixed(2)} Kč</b><br><small>z ${podil.totalOSM_uklid} OSM</small></td></tr>`;
 
-        const costs = (DATA.costs || []).filter(c => c.name == name && c.year == rok);
+        const allCosts = (DATA.costs || []).filter(c => c.name == name && c.year == rok);
+        const costs = allCosts.filter(c => !String(c.desc).includes('[EXTRA_ZÁLOHA]'));
+        const extraZalohy = allCosts.filter(c => String(c.desc).includes('[EXTRA_ZÁLOHA]'));
+
         const indNakl = costs.reduce((s, c) => s + Number(c.price || 0), 0);
+        const sumExtraZalohy = extraZalohy.reduce((s, c) => s + Number(c.price || 0), 0);
+
         costs.forEach(c => { rowH += `<tr style="color:#2980b9"><td><b>Mimořádný náklad</b><br><small>${c.desc}</small></td><td style="text-align:right">-</td><td style="text-align:right"><b>${Number(c.price).toFixed(2)} Kč</b></td></tr>`; });
 
-        const tZ = Number(t.zalohy||0); const vysl = (tZ * 12) - (podil.celkem + indNakl);
+        const nakladyCelkem = podil.celkem + indNakl;
+        
+        rowH += `<tr style="background:#fdfcf0; font-weight:bold; border-top: 2px solid #ccc;"><td>CELKOVÉ NÁKLADY JEDNOTKY</td><td style="text-align:right">-</td><td style="text-align:right">${nakladyCelkem.toFixed(2)} Kč</td></tr>`;
+
+        const tZ = Number(t.zalohy||0); 
+        const celkemPravidelneZalohy = tZ * 12;
+        const celkemZalohy = celkemPravidelneZalohy + sumExtraZalohy;
+
+        let zalohyHtml = `Pravidelné (${tZ} × 12): ${celkemPravidelneZalohy.toFixed(2)} Kč`;
+        extraZalohy.forEach(z => {
+            let descClean = z.desc.replace('[EXTRA_ZÁLOHA] ', '').replace('[EXTRA_ZÁLOHA]', '');
+            zalohyHtml += `<br>Mimořádná (${descClean}): ${Number(z.price).toFixed(2)} Kč`;
+        });
+
+        rowH += `<tr style="background:#f0fff4; color:#27ae60; font-weight:bold; border-top: 1px solid #ccc;"><td>UHRAZENÉ ZÁLOHY CELKEM<br><small style="font-weight:normal; color:#333;">${zalohyHtml}</small></td><td style="text-align:right">-</td><td style="text-align:right">- ${celkemZalohy.toFixed(2)} Kč</td></tr>`;
+
+        const vysl = celkemZalohy - nakladyCelkem;
+
         let qr = ""; if(vysl < 0) {
             const dluz = Math.abs(vysl).toFixed(2); 
             const currentYear = new Date().getFullYear().toString();
