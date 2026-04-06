@@ -641,7 +641,7 @@
         const tZ = Number(t.zalohy||0); const vysl = (tZ * 12) - (podil.celkem + indNakl);
         let qr = ""; if(vysl < 0) {
             const dluz = Math.abs(vysl).toFixed(2); const vs = rok.toString() + String(t.unit||"").replace(/\D/g,"").padStart(2,'0');
-            qr = `<div style="text-align:center;margin-top:20px;border:1px solid #f8d7da;padding:15px;background:#fff5f5;border-radius:8px;display:inline-block;"><h4 style="margin:0 0 10px 0;color:#c53030">Úhrada nedoplatku</h4><img src="https://api.paylibo.com/paylibo/generator/czech/image?accountNumber=2402266265&bankCode=2010&amount=${dluz}&vs=${vs}&currency=CZK&message=Nedoplatek+${rok}" width="150" height="150"><br><b>2402266265/2010</b><br>VS: ${vs} | ${dluz} Kč</div>`;
+            qr = `<div style="text-align:center;margin-top:20px;border:1px solid #f8d7da;padding:15px;background:#fff5f5;border-radius:8px;display:inline-block;"><h4 style="margin:0 0 10px 0;color:#c53030">Úhrada nedoplatku</h4><img src="https://api.paylibo.com/paylibo/generator/czech/image?accountNumber=2401555604&bankCode=2010&amount=${dluz}&vs=${vs}&currency=CZK&message=Nedoplatek+${rok}" width="150" height="150"><br><b>2401555604/2010</b><br>VS: ${vs} | ${dluz} Kč</div>`;
         }
 
         const nextId = getNextId(DATA.settlements);
