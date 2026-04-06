@@ -137,12 +137,12 @@
                     <div class="box-section">
                         <h3 style="color:#27ae60">3. Odpady (Čistá Plzeň + AVE)</h3>
                         <div style="border-bottom:1px solid #ddd; padding-bottom:10px; margin-bottom:10px">
-                            <label style="color:#27ae60">Čistá Plzeň (Dle osob v domácnosti)</label>
+                            <label style="color:#27ae60">Čistá Plzeň (Dle OSM)</label>
                             <input type="number" id="sc-odpadyCP-cena" placeholder="Cena celkem (Kč)">
                             <div class="tenant-list" id="list-odpadyCP"></div>
                         </div>
                         <div>
-                            <label style="color:#e67e22">AVE (Komerce - Rovným dílem)</label>
+                            <label style="color:#e67e22">AVE (Komerce - Dle OSM)</label>
                             <input type="number" id="sc-odpadyAVE-cena" placeholder="Cena celkem (Kč)">
                             <div class="tenant-list" id="list-odpadyAVE"></div>
                         </div>
@@ -165,13 +165,13 @@
                                 Vypočtená sazba: <span id="sc-ele-sazba-display" style="color:#f39c12; font-size: 1.1em;">0</span> Kč/kWh
                             </div>
                             <input type="hidden" id="sc-ele-sazba">
-                            <label>Rozúčtovat rovným dílem mezi:</label>
+                            <label>Rozúčtovat dle OSM mezi:</label>
                             <div class="tenant-list" id="list-ele"></div>
                         </div>
                         <div class="box-section">
                             <h3 style="color:#8e44ad">5. Úklid spol. prostor</h3>
                             <label>Celková cena za úklid (Kč)</label><input type="number" id="sc-uklid-cena">
-                            <label>Rozúčtovat rovným dílem mezi:</label>
+                            <label>Rozúčtovat dle OSM mezi:</label>
                             <div class="tenant-list" id="list-uklid"></div>
                         </div>
                     </div>
@@ -228,6 +228,13 @@
             </div>
         </div>
 
+        <div class="box-section">
+            <label style="color:#2c3e50">Evidence osob a období (Osoboměsíce - OSM)</label>
+            <div id="osm-container"></div>
+            <button class="btn btn-gray btn-small" onclick="addOsmRow(1,0)">+ Přidat úsek osob</button>
+            <p style="font-size:11px; color:#e74c3c; margin-top:5px">Součet měsíců musí být přesně 12.</p>
+        </div>
+
         <div style="background:#f1f5f9; padding: 10px; border-radius: 6px; margin-bottom: 15px; border-left: 4px solid #3498db;">
             <label style="color:#3498db">Přiřazený Variabilní Symbol (VS) pro platby</label>
             <input type="text" id="f-vs" placeholder="např. 202401" style="margin-bottom:0">
@@ -245,10 +252,9 @@
             <div><label>Telefon</label><input type="text" id="f-telefon"></div>
         </div>
         
-        <div class="grid-3">
+        <div class="grid">
             <div><label>Měsíční nájemné (Kč)</label><input type="number" id="f-najem"></div>
             <div><label>Měsíční zálohy (Kč)</label><input type="number" id="f-zalohy"></div>
-            <div><label>Počet osob / Zam.</label><input type="number" id="f-pocetosob"></div>
         </div>
         
         <label>Platnost smlouvy do</label><input type="date" id="f-platnostdo">
@@ -278,7 +284,6 @@
     let DATA = null; let USER = null; let CUR_EMAIL = "";
     const mesiceNázvy = ["", "Leden", "Únor", "Březen", "Duben", "Květen", "Červen", "Červenec", "Srpen", "Září", "Říjen", "Listopad", "Prosinec"];
 
-    // UNIVERZÁLNÍ FUNKCE PRO ZÍSKÁNÍ ID (Hledá nejnižší volné)
     function getNextId(dataList) {
         if (!dataList || dataList.length === 0) return 1;
         const ids = dataList.map(item => Number(item.id || item.ID)).filter(id => !isNaN(id)).sort((a, b) => a - b);
@@ -288,6 +293,29 @@
             else if (ids[i] > nextId) return nextId;
         }
         return nextId;
+    }
+
+    function addOsmRow(osoby = 1, mesice = 12) {
+        const container = document.getElementById('osm-container');
+        const div = document.createElement('div');
+        div.className = 'grid osm-row';
+        div.style.marginBottom = '5px';
+        div.innerHTML = `
+            <input type="number" class="osm-osoby" value="${osoby}" placeholder="Osoby" title="Počet osob">
+            <input type="number" class="osm-mesice" value="${mesice}" placeholder="Měsíce" title="Počet měsíců">
+            <button class="btn btn-red btn-small" onclick="this.parentElement.remove()" style="margin-bottom:15px">X</button>
+        `;
+        container.appendChild(div);
+    }
+
+    function calculateTenantOSM() {
+        let total = 0; let monthsSum = 0;
+        document.querySelectorAll('.osm-row').forEach(row => {
+            const os = Number(row.querySelector('.osm-osoby').value || 0);
+            const m = Number(row.querySelector('.osm-mesice').value || 0);
+            total += (os * m); monthsSum += m;
+        });
+        return { total, monthsSum };
     }
 
     window.onload = function() {
@@ -321,7 +349,6 @@
     function startApp() {
         document.getElementById('loginSection').classList.add('hidden'); document.getElementById('app').classList.remove('hidden');
         if(USER.role === 'admin') { document.getElementById('adminContent').classList.remove('hidden'); renderAdminTable(); }
-        else { document.getElementById('tenantContent').classList.remove('hidden'); renderTenantView(); }
     }
 
     function renderAdminTable() {
@@ -357,6 +384,7 @@
     function openEdit(idx) {
         if(!idx) {
             document.getElementById('f-rowidx').value = ""; document.querySelectorAll('#modal input').forEach(i => { if(i.type !== 'checkbox') i.value = "" });
+            document.getElementById('osm-container').innerHTML = ""; addOsmRow(1, 12);
             document.getElementById('f-dph').checked = false; document.getElementById('f-typ').value = "byt"; toggleTypProstoru();
             document.getElementById('meterSection').innerHTML = `<label>Počáteční stav vodoměru</label><input type="number" id="f-meterStart">`;
         } else {
@@ -369,7 +397,15 @@
             document.getElementById('f-street').value = t.street || ""; document.getElementById('f-city').value = t.city || "";
             document.getElementById('f-zip').value = t.zip || ""; document.getElementById('f-email').value = t.email || "";
             document.getElementById('f-telefon').value = t.telefon || ""; document.getElementById('f-najem').value = t.najem || 0;
-            document.getElementById('f-zalohy').value = t.zalohy || 0; document.getElementById('f-pocetosob').value = t.pocetosob || 1;
+            document.getElementById('f-zalohy').value = t.zalohy || 0;
+            
+            document.getElementById('osm-container').innerHTML = "";
+            try {
+                const osm = JSON.parse(t.osm_history || "[]");
+                if(osm.length === 0) addOsmRow(t.pocetosob || 1, 12);
+                else osm.forEach(r => addOsmRow(r.osoby, r.mesice));
+            } catch(e) { addOsmRow(t.pocetosob || 1, 12); }
+
             if(t.platnostdo) document.getElementById('f-platnostdo').value = new Date(t.platnostdo).toISOString().split('T')[0];
             const mHist = (DATA.meters || []).filter(m => String(m.name).toLowerCase() === String(t.name).toLowerCase());
             const last = mHist[mHist.length-1];
@@ -379,13 +415,21 @@
     }
 
     async function handleSave() {
+        const { total, monthsSum } = calculateTenantOSM();
+        if(monthsSum !== 12) { alert("CHYBA: Součet měsíců v evidenci osob musí být přesně 12! Nyní máte: " + monthsSum); return; }
+
+        const btn = document.getElementById('saveBtn'); btn.innerText = "Ukládám...";
+        const osmRows = Array.from(document.querySelectorAll('.osm-row')).map(r => ({ osoby: r.querySelector('.osm-osoby').value, mesice: r.querySelector('.osm-mesice').value }));
         const isNew = !document.getElementById('f-rowidx').value;
-        const p = { 
+        const p = {
             id: isNew ? getNextId(DATA.tenants) : "",
-            rowidx: document.getElementById('f-rowidx').value, typ: document.getElementById('f-typ').value, name: document.getElementById('f-name').value, jednatel: document.getElementById('f-jednatel').value, ico: document.getElementById('f-ico').value, dph: document.getElementById('f-dph').checked ? "Ano" : "Ne", plocha: document.getElementById('f-plocha').value, unit: document.getElementById('f-unit').value, vs: document.getElementById('f-vs').value, street: document.getElementById('f-street').value, city: document.getElementById('f-city').value, zip: document.getElementById('f-zip').value, email: document.getElementById('f-email').value, telefon: document.getElementById('f-telefon').value, najem: document.getElementById('f-najem').value, zalohy: document.getElementById('f-zalohy').value, pocetosob: document.getElementById('f-pocetosob').value, platnostdo: document.getElementById('f-platnostdo').value, meterStart: document.getElementById('f-meterStart')?.value || "", meterEnd: document.getElementById('f-meterEnd')?.value || ""
+            rowidx: document.getElementById('f-rowidx').value, typ: document.getElementById('f-typ').value, name: document.getElementById('f-name').value, jednatel: document.getElementById('f-jednatel').value, ico: document.getElementById('f-ico').value, dph: document.getElementById('f-dph').checked ? "Ano" : "Ne", plocha: document.getElementById('f-plocha').value, unit: document.getElementById('f-unit').value, vs: document.getElementById('f-vs').value, street: document.getElementById('f-street').value, city: document.getElementById('f-city').value, zip: document.getElementById('f-zip').value, email: document.getElementById('f-email').value, telefon: document.getElementById('f-telefon').value, najem: document.getElementById('f-najem').value, zalohy: document.getElementById('f-zalohy').value, 
+            osm_history: JSON.stringify(osmRows),
+            pocetosob: osmRows[osmRows.length-1].osoby,
+            platnostdo: document.getElementById('f-platnostdo').value, meterStart: document.getElementById('f-meterStart')?.value || "", meterEnd: document.getElementById('f-meterEnd')?.value || ""
         };
         const resp = await fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify({action:'saveTenant', payload:p}) });
-        DATA = await resp.json(); renderAdminTable(); closeModal();
+        DATA = await resp.json(); renderAdminTable(); closeModal(); btn.innerText = "Uložit celou kartu";
     }
 
     async function saveOnlyCost() {
@@ -439,7 +483,7 @@
             id: existing ? "" : getNextId(DATA.sharedCosts),
             voda: { cena: document.getElementById('sc-voda-celkem-cena').innerText, m3: document.getElementById('sc-voda-celkem-m3').innerText, segments: Array.from(document.querySelectorAll('.voda-row')).map(r => ({cena: r.querySelector('.v-cena').value, dph: r.querySelector('.v-dph').value, m3: r.querySelector('.v-m3').value})), tenants: Array.from(document.querySelectorAll('.chk-voda:checked')).map(c => c.value) },
             srazky: { cena: document.getElementById('sc-srazky-celkem-cena').innerText, segments: Array.from(document.querySelectorAll('.srazky-row')).map(r => ({cena: r.querySelector('.s-cena').value, m3: r.querySelector('.s-m3').value})), tenants: Array.from(document.querySelectorAll('.chk-srazky:checked')).map(c => c.value) },
-            ele: { hlavniStart: document.getElementById('sc-ele-hlavni-start').value, hlavniEnd: document.getElementById('sc-ele-hlavni-end').value, cenaCelkem: document.getElementById('sc-ele-celkem-cena').value, sazba: document.getElementById('sc-ele-sazba').value, tenants: Array.from(document.querySelectorAll('.chk-ele:checked')).map(c => c.value) },
+            ele: { hlavniStart: document.getElementById('sc-ele-hlavni-start').value, hlavniEnd: document.getElementById('sc-ele-hlavni-end').value, podruznyStart: document.getElementById('sc-ele-podruzny-start').value, podruznyEnd: document.getElementById('sc-ele-podruzny-end').value, cenaCelkem: document.getElementById('sc-ele-celkem-cena').value, sazba: document.getElementById('sc-ele-sazba').value, tenants: Array.from(document.querySelectorAll('.chk-ele:checked')).map(c => c.value) },
             odpadyCP: { cena: document.getElementById('sc-odpadyCP-cena').value, tenants: Array.from(document.querySelectorAll('.chk-odpadyCP:checked')).map(c => c.value) },
             odpadyAVE: { cena: document.getElementById('sc-odpadyAVE-cena').value, tenants: Array.from(document.querySelectorAll('.chk-odpadyAVE:checked')).map(c => c.value) },
             uklid: { cena: document.getElementById('sc-uklid-cena').value, tenants: Array.from(document.querySelectorAll('.chk-uklid:checked')).map(c => c.value) }
@@ -451,194 +495,94 @@
     function calculateTenantShares(year) {
         const saved = (DATA.sharedCosts || []).find(s => s.year == year); if(!saved) return null;
         const sc = JSON.parse(saved.data); let shares = {};
-        (DATA.tenants || []).forEach(t => shares[t.name] = { voda:0, srazky:0, ele:0, odpady:0, uklid:0, celkem:0 });
+
+        const tenantsOSM = (DATA.tenants || []).map(t => {
+            let osm = 0; try { const h = JSON.parse(t.osm_history || "[]"); h.forEach(r => osm += (Number(r.osoby)*Number(r.mesice))); } catch(e){ osm = 12; }
+            return { name: t.name, osm: osm, plocha: Number(t.plocha || 0) };
+        });
+
+        tenantsOSM.forEach(t => shares[t.name] = { voda:0, srazky:0, ele:0, odpady:0, uklid:0, celkem:0, mojeOSM: t.osm });
+        const getSumOSM = (list) => tenantsOSM.filter(x => list.includes(x.name)).reduce((s, x) => s + x.osm, 0);
+
         if(sc.voda && Number(sc.voda.m3) > 0) {
             const pV = Number(sc.voda.cena) / Number(sc.voda.m3);
-            sc.voda.tenants.forEach(n => { const m = (DATA.meters || []).filter(x => x.name == n && x.year == year); shares[n].voda = Math.round(m.reduce((s, x) => s + Number(x.spotreba || 0), 0) * pV); });
+            sc.voda.tenants.forEach(n => { const m = (DATA.meters || []).filter(x => x.name == n && x.year == year); shares[n].voda = m.reduce((s, x) => s + Number(x.spotreba || 0), 0) * pV; });
         }
         if(sc.srazky) {
-            const TOTAL = 593; const pM = Number(sc.srazky.cena) / TOTAL; let uziv = 0;
-            sc.srazky.tenants.forEach(n => { if(n !== "AMK TRABANT PLZEŇ z.s.") { let t = DATA.tenants.find(x => x.name == n); let pl = Number(t?.plocha || 0); uziv += pl; shares[n].srazky = Math.round(pl * pM); } });
-            if(sc.srazky.tenants.includes("AMK TRABANT PLZEŇ z.s.")) shares["AMK TRABANT PLZEŇ z.s."].srazky = Math.round((TOTAL - uziv) * pM);
+            const TOTAL_AREA = 593; const pM = Number(sc.srazky.cena) / TOTAL_AREA; let uziv = 0;
+            sc.srazky.tenants.forEach(n => { if(n !== "AMK TRABANT PLZEŇ z.s.") { let pl = tenantsOSM.find(x => x.name == n)?.plocha || 0; uziv += pl; shares[n].srazky = pl * pM; } });
+            if(sc.srazky.tenants.includes("AMK TRABANT PLZEŇ z.s.")) shares["AMK TRABANT PLZEŇ z.s."].srazky = (TOTAL_AREA - uziv) * pM;
         }
-        ['ele', 'odpadyCP', 'odpadyAVE', 'uklid'].forEach(l => { if(sc[l] && sc[l].tenants && sc[l].tenants.length > 0) { let podil = Math.round(Number(sc[l].cena || sc[l].cenaCelkem || 0) / sc[l].tenants.length); sc[l].tenants.forEach(n => { if(l.includes('odpady')) shares[n].odpady += podil; else shares[n][l] = podil; }); } });
+
+        ['ele', 'odpadyCP', 'odpadyAVE', 'uklid'].forEach(l => {
+            if(sc[l] && sc[l].tenants && sc[l].tenants.length > 0) {
+                const totalOSM = getSumOSM(sc[l].tenants);
+                const cenaOSM = totalOSM > 0 ? (Number(sc[l].cena || sc[l].cenaCelkem || 0) / totalOSM) : 0;
+                sc[l].tenants.forEach(n => {
+                    const podil = shares[n].mojeOSM * cenaOSM;
+                    if(l.includes('odpady')) shares[n].odpady += podil; else shares[n][l] = podil;
+                    shares[n]['totalOSM_'+l] = totalOSM;
+                });
+            }
+        });
+
         for (let k in shares) shares[k].celkem = shares[k].voda + shares[k].srazky + shares[k].ele + shares[k].odpady + shares[k].uklid;
         return shares;
     }
 
     function generateSettlement() {
-    const name = document.getElementById('f-name').value;
-    const rok = prompt("Zadejte rok vyúčtování:", new Date().getFullYear());
-    if(!rok) return;
+        const name = document.getElementById('f-name').value;
+        const rok = prompt("Zadejte rok vyúčtování:", new Date().getFullYear()); if(!rok) return;
+        const t = DATA.tenants.find(x => x.name == name);
+        const shares = calculateTenantShares(rok); if(!shares || !shares[name]) { alert("Chybí data pro rozúčtování."); return; }
+        const podil = shares[name]; const saved = (DATA.sharedCosts || []).find(s => s.year == rok);
+        const sc = saved ? JSON.parse(saved.data) : null;
+        const isChecked = (s) => sc && sc[s] && sc[s].tenants && sc[s].tenants.includes(name);
+        const dSpl = new Date(); dSpl.setDate(dSpl.getDate() + 14);
 
-    const t = DATA.tenants.find(x => x.name == name);
-    if(!t) { alert("Nájemník nebyl v databázi nalezen."); return; }
+        let rowH = "";
+        if(podil.voda > 0) {
+            const m = (DATA.meters || []).filter(x => x.name == name && x.year == rok);
+            const spotr = m.reduce((s, x) => s + Number(x.spotreba || 0), 0);
+            const mS = m.length > 0 ? m[0].pocatecni : "?"; const mE = m.length > 0 ? m[m.length-1].koncovy : "?";
+            rowH += `<tr><td><b>Vodné a stočné</b><br><small>Stav: ${mS} m³ → ${mE} m³</small></td><td style="text-align:right">${Number(sc.voda.cena).toFixed(2)} Kč<br><small>${sc.voda.m3} m³</small></td><td style="text-align:right"><b>${podil.voda.toFixed(2)} Kč</b><br><small>(${spotr.toFixed(1)} m³)</small></td></tr>`;
+        }
+        if(podil.srazky > 0 && isChecked('srazky')) rowH += `<tr><td><b>Srážkovné</b><br><small>Plocha jednotky: ${t.plocha} m²</small></td><td style="text-align:right">${Number(sc.srazky.cena).toFixed(2)} Kč</td><td style="text-align:right"><b>${podil.srazky.toFixed(2)} Kč</b></td></tr>`;
+        if(podil.ele > 0 && isChecked('ele')) {
+            const diffkWh = (Number(sc.ele.hlavniEnd) - Number(sc.ele.hlavniStart)) - (Number(sc.ele.podruznyEnd) - Number(sc.ele.podruznyStart));
+            rowH += `<tr><td><b>Společná elektřina</b><br><small>Dle OSM: ${podil.mojeOSM}</small></td><td style="text-align:right">${Number(sc.ele.cenaCelkem).toFixed(2)} Kč<br><small>${diffkWh.toFixed(1)} kWh | ${Number(sc.ele.sazba).toFixed(2)} Kč/kWh</small></td><td style="text-align:right"><b>${podil.ele.toFixed(2)} Kč</b><br><small>z ${podil.totalOSM_ele} OSM</small></td></tr>`;
+        }
+        ['odpadyCP', 'odpadyAVE'].forEach(l => {
+            if(isChecked(l)) {
+                rowH += `<tr><td><b>Odpady (${l==='odpadyCP'?'Čistá Plzeň':'AVE'})</b><br><small>Dle OSM: ${podil.mojeOSM}</small></td><td style="text-align:right">${Number(sc[l].cena).toFixed(2)} Kč</td><td style="text-align:right"><b>${podil.odpady.toFixed(2)} Kč</b><br><small>z ${podil['totalOSM_'+l]} OSM</small></td></tr>`;
+            }
+        });
+        if(podil.uklid > 0 && isChecked('uklid')) rowH += `<tr><td><b>Úklid spol. prostor</b><br><small>Dle OSM: ${podil.mojeOSM}</small></td><td style="text-align:right">${Number(sc.uklid.cena).toFixed(2)} Kč</td><td style="text-align:right"><b>${podil.uklid.toFixed(2)} Kč</b><br><small>z ${podil.totalOSM_uklid} OSM</small></td></tr>`;
 
-    const shares = calculateTenantShares(rok);
-    const podil = shares ? shares[name] : {voda:0, srazky:0, ele:0, odpady:0, uklid:0, celkem:0};
-    const saved = (DATA.sharedCosts || []).find(s => s.year == rok);
-    const sc = saved ? JSON.parse(saved.data) : null;
-    const isChecked = (service) => sc && sc[service] && sc[service].tenants && sc[service].tenants.includes(name);
+        const costs = (DATA.costs || []).filter(c => c.name == name && c.year == rok);
+        const indNakl = costs.reduce((s, c) => s + Number(c.price || 0), 0);
+        costs.forEach(c => { rowH += `<tr style="color:#2980b9"><td><b>Mimořádný náklad</b><br><small>${c.desc}</small></td><td style="text-align:right">-</td><td style="text-align:right"><b>${Number(c.price).toFixed(2)} Kč</b></td></tr>`; });
 
-    // --- LOGIKA PRO VODU (Stavy + Spotřeba) ---
-    const mHist = (DATA.meters || []).filter(x => String(x.name).toLowerCase() === String(name).toLowerCase() && x.year == rok);
-    const mStart = mHist.length > 0 ? mHist[0].pocatecni : "?";
-    const mEnd = mHist.length > 0 ? mHist[mHist.length-1].koncovy : "?";
-    const mSpotreba = mHist.reduce((sum, x) => sum + Number(x.spotreba || 0), 0);
+        const tZ = Number(t.zalohy||0); const vysl = (tZ * 12) - (podil.celkem + indNakl);
+        let qr = ""; if(vysl < 0) {
+            const dluz = Math.abs(vysl).toFixed(2); const vs = rok.toString() + String(t.unit||"").replace(/\D/g,"").padStart(2,'0');
+            qr = `<div style="text-align:center;margin-top:20px;border:1px solid #f8d7da;padding:15px;background:#fff5f5;border-radius:8px;display:inline-block;"><h4 style="margin:0 0 10px 0;color:#c53030">Úhrada nedoplatku</h4><img src="https://api.paylibo.com/paylibo/generator/czech/image?accountNumber=2402266265&bankCode=2010&amount=${dluz}&vs=${vs}&currency=CZK&message=Nedoplatek+${rok}" width="150" height="150"><br><b>2402266265/2010</b><br>VS: ${vs} | ${dluz} Kč</div>`;
+        }
 
-    let tabulkaHtml = "";
-
-    // 1. Voda
-    if (podil.voda > 0) {
-        tabulkaHtml += `<tr>
-            <td><b>Vodné a stočné</b><br><small>Stav: ${mStart} m³ → ${mEnd} m³</small></td>
-            <td style="text-align:right">${Number(sc.voda.cena).toFixed(2)} Kč / ${sc.voda.m3} m³</td>
-            <td style="text-align:right"><b>${podil.voda.toFixed(2)} Kč</b><br><small>(${mSpotreba.toFixed(1)} m³)</small></td>
-        </tr>`;
+        const w = window.open("", "_blank");
+        w.document.write(`<html><head><style>body{font-family:'Segoe UI',sans-serif;padding:40px;color:#333;line-height:1.4}#obsahZuctovani{max-width:850px;margin:auto;border:1px solid #ddd;padding:40px;background:white}.header-flex{display:flex;justify-content:space-between;border-bottom:2px solid #eee;padding-bottom:20px;margin-bottom:30px}th{text-align:left;padding:10px;border-bottom:2px solid #3498db;background:#f0f7ff;color:#3498db;font-size:12px}td{padding:12px 10px;border-bottom:1px solid #eee;font-size:14px}.res-box{margin-top:30px;padding:25px;text-align:center;border:2px solid #333;border-radius:8px;font-size:20px}</style></head><body>
+            <div id="obsahZuctovani"><h1 style="text-align:center;margin-top:0">VYÚČTOVÁNÍ SLUŽEB ZA ROK ${rok}</h1>
+            <div class="header-flex"><div><b>Poskytovatel:</b><br>AMK TRABANT PLZEŇ z.s.<br>IČ: 45333637<br>Úslavská 339/2, Plzeň</div><div style="text-align:right"><b>Příjemce (jednotka ${t.unit}):</b><br>${t.name}<br>${t.street||''}<br>${t.zip||''} ${t.city||''}</div></div>
+            <div style="text-align:right;font-weight:bold;color:#e74c3c;margin-bottom:10px">Splatnost do: ${dSpl.toLocaleDateString('cs-CZ')}</div>
+            <table><thead><tr><th>DRUH SLUŽBY / VÝPOČET</th><th style="text-align:right">NÁKLADY OBJEKTU</th><th style="text-align:right">PODÍL JEDNOTKY</th></tr></thead><tbody>${rowH}</tbody></table>
+            <div class="res-box" style="border-color:${vysl>=0?'#27ae60':'#e74c3c'};background:${vysl>=0?'#f0fff4':'#fff5f5'}">VÝSLEDEK: <b style="color:${vysl>=0?'#27ae60':'#e74c3c'}">${vysl>=0?'PŘEPLATEK':'NEDOPLATEK'} ${Math.abs(vysl).toFixed(2)} Kč</b></div>
+            <div style="text-align:center">${qr}</div></div></body></html>`);
+        w.document.close();
     }
-
-    // 2. Srážkovné
-    if (podil.srazky > 0 && isChecked('srazky')) {
-        tabulkaHtml += `<tr>
-            <td><b>Srážkovné</b><br><small>Plocha: ${t.plocha} m² (podíl na srážkách)</small></td>
-            <td style="text-align:right">${Number(sc.srazky.cena).toFixed(2)} Kč</td>
-            <td style="text-align:right"><b>${podil.srazky.toFixed(2)} Kč</b></td>
-        </tr>`;
-    }
-
-    // 3. Elektřina
-    if (podil.ele > 0 && isChecked('ele')) {
-        tabulkaHtml += `<tr>
-            <td><b>Společná elektřina</b><br><small>Sazba: ${Number(sc.ele.sazba).toFixed(2)} Kč/kWh | Osob: ${t.pocetosob}</small></td>
-            <td style="text-align:right">${Number(sc.ele.cenaCelkem).toFixed(2)} Kč</td>
-            <td style="text-align:right"><b>${podil.ele.toFixed(2)} Kč</b></td>
-        </tr>`;
-    }
-
-    // 4. Odpady
-    if (isChecked('odpadyCP') || isChecked('odpadyAVE')) {
-        const cenaCelk = (Number(sc.odpadyCP?.cena || 0) + Number(sc.odpadyAVE?.cena || 0)).toFixed(2);
-        tabulkaHtml += `<tr>
-            <td><b>Odvoz odpadu</b><br><small>Dle nastavení v rozúčtování</small></td>
-            <td style="text-align:right">${cenaCelk} Kč</td>
-            <td style="text-align:right"><b>${podil.odpady.toFixed(2)} Kč</b></td>
-        </tr>`;
-    }
-
-    // 5. Úklid
-    if (podil.uklid > 0 && isChecked('uklid')) {
-        tabulkaHtml += `<tr>
-            <td><b>Úklid společných prostor</b></td>
-            <td style="text-align:right">${Number(sc.uklid.cena).toFixed(2)} Kč</td>
-            <td style="text-align:right"><b>${podil.uklid.toFixed(2)} Kč</b></td>
-        </tr>`;
-    }
-
-    // Mimořádné náklady
-    const costs = (DATA.costs || []).filter(c => c.name == name && c.year == rok);
-    const indNaklady = costs.reduce((s, c) => s + Number(c.price || 0), 0);
-    costs.forEach(c => {
-        tabulkaHtml += `<tr style="color:#2980b9">
-            <td><b>Mimořádný náklad / Oprava</b><br><small>${c.desc}</small></td>
-            <td style="text-align:right">-</td>
-            <td style="text-align:right"><b>${Number(c.price).toFixed(2)} Kč</b></td>
-        </tr>`;
-    });
-
-    // Výpočty bilance
-    const tZaloha = Number(t.zalohy || 0);
-    const celkemVybranoZalohy = tZaloha * 12; // Předpokládáme 12 měsíců
-    const celkNakladyFinal = podil.celkem + indNaklady;
-    const vysledek = celkemVybranoZalohy - celkNakladyFinal;
-
-    // Splatnost + QR
-    const dSplatnosti = new Date(); dSplatnosti.setDate(dSplatnosti.getDate() + 14);
-    let qrHtml = "";
-    if (vysledek < 0) {
-        const dluznaCastka = Math.abs(vysledek);
-        const cistaJednotka = String(t.unit || "").replace(/\D/g, "");
-        const specVs = rok.toString() + (cistaJednotka.padStart(2, '0'));
-        const qrUrl = `https://api.paylibo.com/paylibo/generator/czech/image?accountNumber=2402266265&bankCode=2010&amount=${dluznaCastka.toFixed(2)}&vs=${specVs}&currency=CZK&message=Nedoplatek+${rok}`;
-        qrHtml = `
-            <div style="text-align:center; margin-top:20px; padding:15px; background:#fdf2f2; border:1px solid #f8d7da; border-radius:8px; display:inline-block;">
-                <h4 style="margin:0 0 10px 0; color:#c53030;">Pokyny k úhradě nedoplatku</h4>
-                <img src="${qrUrl}" width="160" height="160" style="border:1px solid #ccc; background:white; padding:5px;">
-                <p style="margin:10px 0 0 0; font-size:14px;"><b>Účet:</b> 2402266265/2010<br><b>VS:</b> ${specVs} | <b>Částka:</b> ${dluznaCastka.toFixed(2)} Kč</p>
-            </div>`;
-    }
-
-    const w = window.open("", "_blank");
-    w.document.write(`<html><head><style>
-        body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; color: #333; line-height: 1.4; }
-        #obsahZuctovani { max-width: 800px; margin: auto; border: 1px solid #ddd; padding: 40px; background: white; }
-        .header-flex { display: flex; justify-content: space-between; margin-bottom: 40px; border-bottom: 2px solid #eee; padding-bottom: 20px; }
-        .section-title { background: #f8f9fa; padding: 8px 12px; font-weight: bold; border-left: 4px solid #3498db; margin: 25px 0 15px 0; text-transform: uppercase; font-size: 13px; }
-        table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
-        th { text-align: left; padding: 10px; border-bottom: 2px solid #3498db; font-size: 12px; color: #3498db; background: #f0f7ff; }
-        td { padding: 12px 10px; border-bottom: 1px solid #eee; font-size: 14px; }
-        .total-row { font-weight: bold; background: #f8f9fa; }
-        .result-box { margin-top: 30px; padding: 25px; text-align: center; border: 2px solid #333; border-radius: 8px; font-size: 20px; }
-        @media print { .no-print { display: none !important; } #obsahZuctovani { border: none; padding: 0; } body { padding: 0; } }
-    </style></head><body>
-        <div class="no-print" style="text-align:center; margin-bottom:20px;">
-            <button onclick="window.print()" style="padding:10px 20px; cursor:pointer;">🖨️ Vytisknout (A4)</button>
-        </div>
-        <div id="obsahZuctovani">
-            <h1 style="text-align:center; margin-top:0; color:#2c3e50;">VYÚČTOVÁNÍ SLUŽEB ZA ROK ${rok}</h1>
-            
-            <div class="header-flex">
-                <div>
-                    <b>Poskytovatel:</b><br>
-                    AMK TRABANT PLZEŇ z.s.<br>
-                    IČ: 45333637<br>
-                    Úslavská 339/2, 326 00 Plzeň
-                </div>
-                <div style="text-align:right;">
-                    <b>Příjemce (jednotka ${t.unit}):</b><br>
-                    ${t.name}<br>
-                    ${t.street || ''}<br>
-                    ${t.zip || ''} ${t.city || ''}
-                </div>
-            </div>
-
-            <div style="display:flex; justify-content:space-between; align-items: baseline;">
-                <div class="section-title" style="flex:1;">ROZPIS SKUTEČNÝCH NÁKLADŮ</div>
-                <div style="font-weight:bold; color:#e74c3c;">Splatnost do: ${dSplatnosti.toLocaleDateString('cs-CZ')}</div>
-            </div>
-
-            <table>
-                <thead><tr><th>DRUH SLUŽBY / POPIS</th><th style="text-align:right">NÁKLAD OBJEKTU</th><th style="text-align:right">PODÍL JEDNOTKY</th></tr></thead>
-                <tbody>
-                    ${tabulkaHtml}
-                    <tr class="total-row"><td>CELKOVÉ NÁKLADY JEDNOTKY (A)</td><td>-</td><td style="text-align:right">${celkNakladyFinal.toFixed(2)} Kč</td></tr>
-                </tbody>
-            </table>
-
-            <div class="section-title">BILANCE PLATEB A VÝSLEDEK</div>
-            <table>
-                <tr><td>Uhrazené zálohy na služby (12 měsíců x ${tZaloha} Kč)</td><td style="text-align:right; color:green;">+ ${celkemVybranoZalohy.toFixed(2)} Kč</td></tr>
-                <tr><td>Skutečné náklady (A)</td><td style="text-align:right; color:red;">- ${celkNakladyFinal.toFixed(2)} Kč</td></tr>
-            </table>
-
-            <div class="result-box" style="border-color: ${vysledek >= 0 ? '#27ae60' : '#e74c3c'}; background: ${vysledek >= 0 ? '#f0fff4' : '#fff5f5'};">
-                VÝSLEDEK ZÚČTOVÁNÍ: <span style="color:${vysledek >= 0 ? '#27ae60' : '#e74c3c'}"><b>${vysledek >= 0 ? 'PŘEPLATEK' : 'NEDOPLATEK'} ${Math.abs(vysledek).toFixed(2)} Kč</b></span>
-            </div>
-
-            <div style="text-align:center; margin-top:20px;">
-                ${qrHtml}
-            </div>
-
-            <div style="margin-top:50px; font-size:11px; color:#888; border-top:1px solid #eee; padding-top:10px; text-align:center;">
-                Vyúčtování vystaveno dne ${new Date().toLocaleDateString('cs-CZ')} | AMK TRABANT PLZEŇ
-            </div>
-        </div>
-    </body></html>`);
-    w.document.close();
-}
 
     function previewSharedCosts() {
         const y = document.getElementById('shared-year').value; const sh = calculateTenantShares(y); if(!sh) return alert("Data nejsou.");
-        let h = ""; for(let n in sh) h += `<tr><td>${n}</td><td>${sh[n].voda}</td><td>${sh[n].srazky}</td><td>${sh[n].ele}</td><td>${sh[n].odpady}</td><td>${sh[n].uklid}</td><td>${sh[n].celkem}</td></tr>`;
+        let h = ""; for(let n in sh) h += `<tr><td>${n}</td><td>${sh[n].voda.toFixed(0)}</td><td>${sh[n].srazky.toFixed(0)}</td><td>${sh[n].ele.toFixed(0)}</td><td>${sh[n].odpady.toFixed(0)}</td><td>${sh[n].uklid.toFixed(0)}</td><td>${sh[n].celkem.toFixed(0)}</td></tr>`;
         document.getElementById('preview-tbody').innerHTML = h; document.getElementById('preview-section').classList.remove('hidden');
     }
     function closeModal() { document.getElementById('modal').style.display = 'none'; }
