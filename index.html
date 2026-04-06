@@ -464,18 +464,49 @@
     }
     function populateTenantLists() { ['voda', 'srazky', 'odpadyCP', 'odpadyAVE', 'ele', 'uklid'].forEach(l => { document.getElementById('list-' + l).innerHTML = (DATA.tenants || []).map(t => `<label><input type="checkbox" class="chk-${l}" value="${t.name}"> ${t.name}</label>`).join(''); }); }
     function loadSharedCosts() {
-        const y = document.getElementById('shared-year').value; const saved = (DATA.sharedCosts || []).find(s => s.year == y);
-        document.getElementById('voda-segments').innerHTML = ""; document.getElementById('srazky-segments').innerHTML = "";
+        const y = document.getElementById('shared-year').value; 
+        const saved = (DATA.sharedCosts || []).find(s => s.year == y);
+        
+        // Resetujeme pole před načtením
+        document.getElementById('voda-segments').innerHTML = ""; 
+        document.getElementById('srazky-segments').innerHTML = "";
+        
         if(saved) {
             const sc = JSON.parse(saved.data);
+            
+            // 1. Voda a Srážky (segmenty)
             if(sc.voda && sc.voda.segments) sc.voda.segments.forEach(seg => addVodaRow(seg.cena, seg.m3, seg.dph));
             if(sc.srazky && sc.srazky.segments) sc.srazky.segments.forEach(seg => addSrazkyRow(seg.cena, seg.m3));
-            document.getElementById('sc-ele-hlavni-start').value = sc.ele?.hlavniStart||""; document.getElementById('sc-ele-hlavni-end').value = sc.ele?.hlavniEnd||"";
-            document.getElementById('sc-ele-celkem-cena').value = sc.ele?.cenaCelkem||""; document.getElementById('sc-odpadyCP-cena').value = sc.odpadyCP?.cena||"";
-            document.getElementById('sc-odpadyAVE-cena').value = sc.odpadyAVE?.cena||""; document.getElementById('sc-uklid-cena').value = sc.uklid?.cena||"";
+            
+            // 2. Elektřina - OPRAVENO NAČÍTÁNÍ PODRUŽNÉHO MĚŘIDLA
+            document.getElementById('sc-ele-hlavni-start').value = sc.ele?.hlavniStart || ""; 
+            document.getElementById('sc-ele-hlavni-end').value = sc.ele?.hlavniEnd || "";
+            document.getElementById('sc-ele-podruzny-start').value = sc.ele?.podruznyStart || ""; // Tady byla chyba
+            document.getElementById('sc-ele-podruzny-end').value = sc.ele?.podruznyEnd || "";     // Tady byla chyba
+            document.getElementById('sc-ele-celkem-cena').value = sc.ele?.cenaCelkem || "";
+            
+            // 3. Odpady a Úklid
+            document.getElementById('sc-odpadyCP-cena').value = sc.odpadyCP?.cena || "";
+            document.getElementById('sc-odpadyAVE-cena').value = sc.odpadyAVE?.cena || "";
+            document.getElementById('sc-uklid-cena').value = sc.uklid?.cena || "";
+            
+            // Přepočítáme zobrazené součty a sazbu
             calcVoda(); calcSrazky(); calcEleSazba();
-            ['voda', 'srazky', 'ele', 'odpadyCP', 'odpadyAVE', 'uklid'].forEach(l => { if(sc[l]?.tenants) sc[l].tenants.forEach(n => { let c = document.querySelector(`.chk-${l}[value="${n}"]`); if(c) c.checked = true; })});
-        } else { addVodaRow(); addSrazkyRow(); }
+            
+            // 4. Zaškrtnutí nájemníků
+            ['voda', 'srazky', 'ele', 'odpadyCP', 'odpadyAVE', 'uklid'].forEach(l => { 
+                // Nejdřív vše odškrtnout
+                document.querySelectorAll(`.chk-${l}`).forEach(ch => ch.checked = false);
+                // Pak zaškrtnout uložené
+                if(sc[l]?.tenants) sc[l].tenants.forEach(n => { 
+                    let c = document.querySelector(`.chk-${l}[value="${n}"]`); 
+                    if(c) c.checked = true; 
+                });
+            });
+        } else { 
+            // Pokud rok neexistuje, vytvoříme prázdné řádky
+            addVodaRow(); addSrazkyRow(); 
+        }
     }
     async function saveSharedCosts() {
         const y = document.getElementById('shared-year').value; const existing = (DATA.sharedCosts || []).find(s => s.year == y);
