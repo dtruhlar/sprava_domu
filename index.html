@@ -356,9 +356,20 @@
     function logout() { localStorage.clear(); location.reload(); }
     
     function startApp() {
-        document.getElementById('loginSection').classList.add('hidden'); document.getElementById('app').classList.remove('hidden');
-        if(USER.role === 'admin') { document.getElementById('adminContent').classList.remove('hidden'); renderAdminTable(); }
+    document.getElementById('loginSection').classList.add('hidden'); 
+    document.getElementById('app').classList.remove('hidden');
+    
+    if(USER.role === 'admin') { 
+        document.getElementById('adminContent').classList.remove('hidden'); 
+        document.getElementById('tenantContent').classList.add('hidden');
+        renderAdminTable(); 
+    } else {
+        // Pokud není admin, zobrazíme sekci pro nájemníka
+        document.getElementById('adminContent').classList.add('hidden');
+        document.getElementById('tenantContent').classList.remove('hidden');
+        renderTenantView();
     }
+}
 
     function renderAdminTable() {
         const curM = new Date().getMonth() + 1;
@@ -384,6 +395,115 @@
             return `<tr><td><strong>${t.name}</strong><br><span style="font-size:11px;color:#7f8c8d">${t.typ==='komerce'?'Komerce':'Byt'} | ${t.email||''}</span></td><td>${t.unit||'-'}</td><td>${badges}</td><td><button class="btn btn-blue" onclick="openEdit(${t.rowidx})">Karta</button></td></tr>`;
         }).join('');
     }
+
+    function renderTenantView() {
+    const tView = document.getElementById('tView');
+    // Najdeme data nájemníka podle e-mailu, kterým se přihlásil
+    const t = DATA.tenants.find(x => String(x.email).toLowerCase().trim() === String(USER.email).toLowerCase().trim());
+    
+    if (!t) {
+        tView.innerHTML = "<h3>Chyba: Vaše údaje nebyly v systému nalezeny. Kontaktujte správce.</h3>";
+        return;
+    }
+
+    // Filtrujeme smlouvy a vyúčtování jen pro tohoto nájemníka
+    const mojeSmlouvy = (DATA.contracts || []).filter(c => String(c.name).toLowerCase() === String(t.name).toLowerCase());
+    const mojeZuctovani = (DATA.settlements || []).filter(s => String(s.name).toLowerCase() === String(t.name).toLowerCase());
+
+    tView.innerHTML = `
+        <div class="container" style="max-width: 800px; padding:0;">
+            <h2 style="margin-bottom:10px;">Vítejte, ${t.name}</h2>
+            <p style="color:#7f8c8d; margin-bottom:30px;">Jednotka: ${t.unit} | VS: ${t.vs}</p>
+
+            <div class="box-section">
+                <h3>📄 Moje dokumenty a dodatky</h3>
+                ${mojeSmlouvy.length === 0 ? '<p>Žádné dokumenty k dispozici.</p>' : `
+                    <table style="min-width: 100%;">
+                        <thead><tr><th>Dokument</th><th>Datum</th><th>Akce</th></tr></thead>
+                        <tbody>
+                            ${mojeSmlouvy.map(c => `
+                                <tr>
+                                    <td>Dodatek č. ${c.dodatek}</td>
+                                    <td>${c.date}</td>
+                                    <td><button class="btn btn-blue btn-small" onclick="viewDoc('contracts', ${c.rowidx})">Zobrazit</button></td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `}
+            </div>
+
+            <div class="box-section">
+                <h3>📊 Roční vyúčtování služeb</h3>
+                ${mojeZuctovani.length === 0 ? '<p>Žádná vyúčtování k dispozici.</p>' : `
+                    <table style="min-width: 100%;">
+                        <thead><tr><th>Rok</th><th>Vystaveno</th><th>Akce</th></tr></thead>
+                        <tbody>
+                            ${mojeZuctovani.map(s => `
+                                <tr>
+                                    <td>Rok ${s.year}</td>
+                                    <td>${s.date}</td>
+                                    <td><button class="btn btn-green btn-small" onclick="viewDoc('settlements', ${s.rowidx})">Zobrazit</button></td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `}
+            </div>
+
+            <div class="box-section" style="background: #fffbeb; border-left: 4px solid #f39c12;">
+                <h3>✉️ Napsat požadavek správci</h3>
+                <label>Předmět</label>
+                <input type="text" id="m-subject" placeholder="Např. Oprava kapajícího kohoutku">
+                <label>Zpráva</label>
+                <textarea id="m-message" style="height:100px;" placeholder="Zde popište váš požadavek..."></textarea>
+                <button class="btn btn-blue" style="width:100%;" onclick="sendTenantMessage('${t.name}')">Odeslat zprávu</button>
+            </div>
+        </div>
+    `;
+}
+
+// Funkce pro otevření dokumentu v novém okně
+function viewDoc(type, rowidx) {
+    const doc = DATA[type].find(x => x.rowidx == rowidx);
+    if (doc && doc.html) {
+        const w = window.open("", "_blank");
+        w.document.write(doc.html);
+        w.document.close();
+    } else {
+        alert("Dokument nelze načíst.");
+    }
+}
+
+// Funkce pro odeslání zprávy z portálu
+async function sendTenantMessage(tenantName) {
+    const subject = document.getElementById('m-subject').value;
+    const message = document.getElementById('m-message').value;
+    if (!subject || !message) { alert("Vyplňte prosím předmět i zprávu."); return; }
+
+    const btn = event.target;
+    btn.innerText = "Odesílám..."; btn.disabled = true;
+
+    try {
+        const resp = await fetch(SCRIPT_URL, { 
+            method: 'POST', 
+            body: JSON.stringify({ 
+                action: 'sendMessage', 
+                tenantName: tenantName, 
+                email: USER.email, 
+                subject: subject, 
+                message: message 
+            }) 
+        });
+        const res = await resp.json();
+        if (res.success) {
+            alert("Zpráva byla úspěšně odeslána správci.");
+            document.getElementById('m-subject').value = "";
+            document.getElementById('m-message').value = "";
+        } else { alert("Chyba při odesílání."); }
+    } catch(e) { alert("Chyba spojení."); }
+    btn.innerText = "Odeslat zprávu"; btn.disabled = false;
+}
 
     function toggleTypProstoru() {
         if (document.getElementById('f-typ').value === 'komerce') { document.getElementById('komerce-fields').classList.remove('hidden'); document.getElementById('label-name').innerText = "Název firmy"; } 
