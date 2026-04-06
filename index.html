@@ -609,7 +609,15 @@
                     const btn = document.getElementById('btnDrive');
                     btn.innerText = "Ukládám na Disk..."; btn.disabled = true;
                     try {
-                        const htmlContent = document.documentElement.outerHTML;
+                        // Vytvoříme kopii stránky a vymažeme z ní tlačítka a skripty pro čistý PDF převod
+                        let clone = document.documentElement.cloneNode(true);
+                        let noPrint = clone.querySelector('.no-print');
+                        if (noPrint) noPrint.remove();
+                        let scripts = clone.querySelectorAll('script');
+                        scripts.forEach(s => s.remove());
+                        
+                        const htmlContent = clone.outerHTML;
+                        
                         const resp = await fetch(API_URL, { 
                             method: 'POST', 
                             body: JSON.stringify({ 
@@ -621,7 +629,7 @@
                         });
                         const res = await resp.json();
                         if(res.success) { alert("Úspěšně uloženo na Google Disk!"); btn.innerText = "✓ Uloženo na Disk"; }
-                        else { alert("Chyba při ukládání na Disk."); btn.innerText = "☁️ Zkusit uložit znovu"; btn.disabled = false; }
+                        else { alert("Chyba při ukládání: " + res.error); btn.innerText = "☁️ Zkusit uložit znovu"; btn.disabled = false; }
                     } catch(e) { alert("Chyba spojení se serverem."); btn.innerText = "☁️ Zkusit uložit znovu"; btn.disabled = false; }
                 }
 
@@ -629,7 +637,15 @@
                     const btn = document.getElementById('btnPortal');
                     btn.innerText = "Odesílám do portálu..."; btn.disabled = true;
                     try {
-                        const htmlContent = document.documentElement.outerHTML;
+                        // Očistíme HTML i pro portál
+                        let clone = document.documentElement.cloneNode(true);
+                        let noPrint = clone.querySelector('.no-print');
+                        if (noPrint) noPrint.remove();
+                        let scripts = clone.querySelectorAll('script');
+                        scripts.forEach(s => s.remove());
+
+                        const htmlContent = clone.outerHTML;
+                        
                         const resp = await fetch(API_URL, { 
                             method: 'POST', 
                             body: JSON.stringify({ 
