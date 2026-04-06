@@ -467,45 +467,174 @@
     }
 
     function generateSettlement() {
-        const name = document.getElementById('f-name').value;
-        const rok = prompt("Rok vyúčtování:", new Date().getFullYear()); if(!rok) return;
-        const t = DATA.tenants.find(x => x.name == name);
-        const shares = calculateTenantShares(rok);
-        const podil = shares ? shares[name] : {voda:0, srazky:0, ele:0, odpady:0, uklid:0, celkem:0};
-        const saved = (DATA.sharedCosts || []).find(s => s.year == rok);
-        const sc = saved ? JSON.parse(saved.data) : null;
-        const isChecked = (s) => sc && sc[s] && sc[s].tenants && sc[s].tenants.includes(name);
+    const name = document.getElementById('f-name').value;
+    const rok = prompt("Zadejte rok vyúčtování:", new Date().getFullYear());
+    if(!rok) return;
 
-        let rowH = "";
-        if(podil.voda > 0) {
-            const m = (DATA.meters || []).filter(x => x.name == name && x.year == rok);
-            const spotr = m.reduce((s, x) => s + Number(x.spotreba || 0), 0);
-            rowH += `<tr><td><b>Vodné a stočné</b><br><small>Vodoměr: ${spotr.toFixed(1)} m³</small></td><td style="text-align:right">${sc.voda.cena} Kč</td><td style="text-align:right"><b>${podil.voda} Kč</b></td></tr>`;
-        }
-        if(podil.srazky > 0 && isChecked('srazky')) rowH += `<tr><td><b>Srážkovné</b></td><td style="text-align:right">${sc.srazky.cena} Kč</td><td style="text-align:right"><b>${podil.srazky} Kč</b></td></tr>`;
-        if(podil.ele > 0 && isChecked('ele')) rowH += `<tr><td><b>Společná elektřina</b><br><small>Sazba: ${Number(sc.ele.sazba).toFixed(2)} | Osob: ${t.pocetosob}</small></td><td style="text-align:right">${sc.ele.cenaCelkem} Kč</td><td style="text-align:right"><b>${podil.ele} Kč</b></td></tr>`;
-        if(isChecked('odpadyCP')) rowH += `<tr><td><b>Odpady CP</b></td><td style="text-align:right">${sc.odpadyCP.cena} Kč</td><td style="text-align:right"><b>${podil.odpady} Kč</b></td></tr>`;
-        if(isChecked('odpadyAVE')) rowH += `<tr><td><b>Odpady AVE</b></td><td style="text-align:right">${sc.odpadyAVE.cena} Kč</td><td style="text-align:right"><b>${podil.odpady} Kč</b></td></tr>`;
-        if(podil.uklid > 0 && isChecked('uklid')) rowH += `<tr><td><b>Úklid</b></td><td style="text-align:right">${sc.uklid.cena} Kč</td><td style="text-align:right"><b>${podil.uklid} Kč</b></td></tr>`;
+    const t = DATA.tenants.find(x => x.name == name);
+    if(!t) { alert("Nájemník nebyl v databázi nalezen."); return; }
 
-        const costs = (DATA.costs || []).filter(c => c.name == name && c.year == rok);
-        const indNakl = costs.reduce((s, c) => s + Number(c.price || 0), 0);
-        costs.forEach(c => { rowH += `<tr style="color:#2980b9"><td><b>Mimořádný náklad</b><br><small>${c.desc}</small></td><td style="text-align:right">-</td><td style="text-align:right"><b>${Number(c.price).toFixed(2)} Kč</b></td></tr>`; });
+    const shares = calculateTenantShares(rok);
+    const podil = shares ? shares[name] : {voda:0, srazky:0, ele:0, odpady:0, uklid:0, celkem:0};
+    const saved = (DATA.sharedCosts || []).find(s => s.year == rok);
+    const sc = saved ? JSON.parse(saved.data) : null;
+    const isChecked = (service) => sc && sc[service] && sc[service].tenants && sc[service].tenants.includes(name);
 
-        const tZ = Number(t.zalohy||0); const vysl = (tZ * 12) - (podil.celkem + indNakl);
-        const dSpl = new Date(); dSpl.setDate(dSpl.getDate() + 14);
+    // --- LOGIKA PRO VODU (Stavy + Spotřeba) ---
+    const mHist = (DATA.meters || []).filter(x => String(x.name).toLowerCase() === String(name).toLowerCase() && x.year == rok);
+    const mStart = mHist.length > 0 ? mHist[0].pocatecni : "?";
+    const mEnd = mHist.length > 0 ? mHist[mHist.length-1].koncovy : "?";
+    const mSpotreba = mHist.reduce((sum, x) => sum + Number(x.spotreba || 0), 0);
 
-        const w = window.open("", "_blank");
-        w.document.write(`<html><head><style>body{font-family:'Segoe UI',sans-serif;padding:40px;color:#333;} table{width:100%;border-collapse:collapse;margin:20px 0;} th{text-align:left;padding:12px;border-bottom:2px solid #3498db;background:#f0f7ff;color:#3498db;font-size:12px;} td{padding:12px;border-bottom:1px solid #eee;font-size:14px;} .res{margin-top:30px;padding:20px;text-align:center;border:2px solid #333;border-radius:8px;font-size:18px;}</style></head><body>
-            <h1 style="text-align:center">VYÚČTOVÁNÍ SLUŽEB ${rok}</h1>
-            <div style="display:flex;justify-content:space-between"><div><b>Poskytovatel:</b><br>AMK TRABANT PLZEŇ z.s.</div><div style="text-align:right"><b>Příjemce:</b><br>${t.name} (Jednotka ${t.unit})</div></div>
-            <p style="text-align:right;font-weight:bold;margin-top:20px;">Datum splatnosti: ${dSpl.toLocaleDateString('cs-CZ')}</p>
-            <table><thead><tr><th>SLUŽBA / NÁKLAD</th><th style="text-align:right">CELÝ OBJEKT</th><th style="text-align:right">NÁKLAD JEDNOTKY</th></tr></thead>
-            <tbody>${rowH}<tr style="background:#f8f9fa;font-weight:bold;"><td>CELKEM NÁKLADY</td><td>-</td><td style="text-align:right">${(podil.celkem+indNakl).toFixed(2)} Kč</td></tr></tbody></table>
-            <div class="res" style="border-color:${vysl>=0?'#27ae60':'#e74c3c'};background:${vysl>=0?'#f0fff4':'#fff5f5'}">VÝSLEDEK: <b style="color:${vysl>=0?'#27ae60':'#e74c3c'}">${vysl>=0?'PŘEPLATEK':'NEDOPLATEK'} ${Math.abs(vysl).toFixed(2)} Kč</b></div>
-        </body></html>`);
-        w.document.close();
+    let tabulkaHtml = "";
+
+    // 1. Voda
+    if (podil.voda > 0) {
+        tabulkaHtml += `<tr>
+            <td><b>Vodné a stočné</b><br><small>Stav: ${mStart} m³ → ${mEnd} m³</small></td>
+            <td style="text-align:right">${Number(sc.voda.cena).toFixed(2)} Kč / ${sc.voda.m3} m³</td>
+            <td style="text-align:right"><b>${podil.voda.toFixed(2)} Kč</b><br><small>(${mSpotreba.toFixed(1)} m³)</small></td>
+        </tr>`;
     }
+
+    // 2. Srážkovné
+    if (podil.srazky > 0 && isChecked('srazky')) {
+        tabulkaHtml += `<tr>
+            <td><b>Srážkovné</b><br><small>Plocha: ${t.plocha} m² (podíl na srážkách)</small></td>
+            <td style="text-align:right">${Number(sc.srazky.cena).toFixed(2)} Kč</td>
+            <td style="text-align:right"><b>${podil.srazky.toFixed(2)} Kč</b></td>
+        </tr>`;
+    }
+
+    // 3. Elektřina
+    if (podil.ele > 0 && isChecked('ele')) {
+        tabulkaHtml += `<tr>
+            <td><b>Společná elektřina</b><br><small>Sazba: ${Number(sc.ele.sazba).toFixed(2)} Kč/kWh | Osob: ${t.pocetosob}</small></td>
+            <td style="text-align:right">${Number(sc.ele.cenaCelkem).toFixed(2)} Kč</td>
+            <td style="text-align:right"><b>${podil.ele.toFixed(2)} Kč</b></td>
+        </tr>`;
+    }
+
+    // 4. Odpady
+    if (isChecked('odpadyCP') || isChecked('odpadyAVE')) {
+        const cenaCelk = (Number(sc.odpadyCP?.cena || 0) + Number(sc.odpadyAVE?.cena || 0)).toFixed(2);
+        tabulkaHtml += `<tr>
+            <td><b>Odvoz odpadu</b><br><small>Dle nastavení v rozúčtování</small></td>
+            <td style="text-align:right">${cenaCelk} Kč</td>
+            <td style="text-align:right"><b>${podil.odpady.toFixed(2)} Kč</b></td>
+        </tr>`;
+    }
+
+    // 5. Úklid
+    if (podil.uklid > 0 && isChecked('uklid')) {
+        tabulkaHtml += `<tr>
+            <td><b>Úklid společných prostor</b></td>
+            <td style="text-align:right">${Number(sc.uklid.cena).toFixed(2)} Kč</td>
+            <td style="text-align:right"><b>${podil.uklid.toFixed(2)} Kč</b></td>
+        </tr>`;
+    }
+
+    // Mimořádné náklady
+    const costs = (DATA.costs || []).filter(c => c.name == name && c.year == rok);
+    const indNaklady = costs.reduce((s, c) => s + Number(c.price || 0), 0);
+    costs.forEach(c => {
+        tabulkaHtml += `<tr style="color:#2980b9">
+            <td><b>Mimořádný náklad / Oprava</b><br><small>${c.desc}</small></td>
+            <td style="text-align:right">-</td>
+            <td style="text-align:right"><b>${Number(c.price).toFixed(2)} Kč</b></td>
+        </tr>`;
+    });
+
+    // Výpočty bilance
+    const tZaloha = Number(t.zalohy || 0);
+    const celkemVybranoZalohy = tZaloha * 12; // Předpokládáme 12 měsíců
+    const celkNakladyFinal = podil.celkem + indNaklady;
+    const vysledek = celkemVybranoZalohy - celkNakladyFinal;
+
+    // Splatnost + QR
+    const dSplatnosti = new Date(); dSplatnosti.setDate(dSplatnosti.getDate() + 14);
+    let qrHtml = "";
+    if (vysledek < 0) {
+        const dluznaCastka = Math.abs(vysledek);
+        const cistaJednotka = String(t.unit || "").replace(/\D/g, "");
+        const specVs = rok.toString() + (cistaJednotka.padStart(2, '0'));
+        const qrUrl = `https://api.paylibo.com/paylibo/generator/czech/image?accountNumber=2402266265&bankCode=2010&amount=${dluznaCastka.toFixed(2)}&vs=${specVs}&currency=CZK&message=Nedoplatek+${rok}`;
+        qrHtml = `
+            <div style="text-align:center; margin-top:20px; padding:15px; background:#fdf2f2; border:1px solid #f8d7da; border-radius:8px; display:inline-block;">
+                <h4 style="margin:0 0 10px 0; color:#c53030;">Pokyny k úhradě nedoplatku</h4>
+                <img src="${qrUrl}" width="160" height="160" style="border:1px solid #ccc; background:white; padding:5px;">
+                <p style="margin:10px 0 0 0; font-size:14px;"><b>Účet:</b> 2402266265/2010<br><b>VS:</b> ${specVs} | <b>Částka:</b> ${dluznaCastka.toFixed(2)} Kč</p>
+            </div>`;
+    }
+
+    const w = window.open("", "_blank");
+    w.document.write(`<html><head><style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; color: #333; line-height: 1.4; }
+        #obsahZuctovani { max-width: 800px; margin: auto; border: 1px solid #ddd; padding: 40px; background: white; }
+        .header-flex { display: flex; justify-content: space-between; margin-bottom: 40px; border-bottom: 2px solid #eee; padding-bottom: 20px; }
+        .section-title { background: #f8f9fa; padding: 8px 12px; font-weight: bold; border-left: 4px solid #3498db; margin: 25px 0 15px 0; text-transform: uppercase; font-size: 13px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+        th { text-align: left; padding: 10px; border-bottom: 2px solid #3498db; font-size: 12px; color: #3498db; background: #f0f7ff; }
+        td { padding: 12px 10px; border-bottom: 1px solid #eee; font-size: 14px; }
+        .total-row { font-weight: bold; background: #f8f9fa; }
+        .result-box { margin-top: 30px; padding: 25px; text-align: center; border: 2px solid #333; border-radius: 8px; font-size: 20px; }
+        @media print { .no-print { display: none !important; } #obsahZuctovani { border: none; padding: 0; } body { padding: 0; } }
+    </style></head><body>
+        <div class="no-print" style="text-align:center; margin-bottom:20px;">
+            <button onclick="window.print()" style="padding:10px 20px; cursor:pointer;">🖨️ Vytisknout (A4)</button>
+        </div>
+        <div id="obsahZuctovani">
+            <h1 style="text-align:center; margin-top:0; color:#2c3e50;">VYÚČTOVÁNÍ SLUŽEB ZA ROK ${rok}</h1>
+            
+            <div class="header-flex">
+                <div>
+                    <b>Poskytovatel:</b><br>
+                    AMK TRABANT PLZEŇ z.s.<br>
+                    IČ: 45333637<br>
+                    Úslavská 339/2, 326 00 Plzeň
+                </div>
+                <div style="text-align:right;">
+                    <b>Příjemce (jednotka ${t.unit}):</b><br>
+                    ${t.name}<br>
+                    ${t.street || ''}<br>
+                    ${t.zip || ''} ${t.city || ''}
+                </div>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items: baseline;">
+                <div class="section-title" style="flex:1;">ROZPIS SKUTEČNÝCH NÁKLADŮ</div>
+                <div style="font-weight:bold; color:#e74c3c;">Splatnost do: ${dSplatnosti.toLocaleDateString('cs-CZ')}</div>
+            </div>
+
+            <table>
+                <thead><tr><th>DRUH SLUŽBY / POPIS</th><th style="text-align:right">NÁKLAD OBJEKTU</th><th style="text-align:right">PODÍL JEDNOTKY</th></tr></thead>
+                <tbody>
+                    ${tabulkaHtml}
+                    <tr class="total-row"><td>CELKOVÉ NÁKLADY JEDNOTKY (A)</td><td>-</td><td style="text-align:right">${celkNakladyFinal.toFixed(2)} Kč</td></tr>
+                </tbody>
+            </table>
+
+            <div class="section-title">BILANCE PLATEB A VÝSLEDEK</div>
+            <table>
+                <tr><td>Uhrazené zálohy na služby (12 měsíců x ${tZaloha} Kč)</td><td style="text-align:right; color:green;">+ ${celkemVybranoZalohy.toFixed(2)} Kč</td></tr>
+                <tr><td>Skutečné náklady (A)</td><td style="text-align:right; color:red;">- ${celkNakladyFinal.toFixed(2)} Kč</td></tr>
+            </table>
+
+            <div class="result-box" style="border-color: ${vysledek >= 0 ? '#27ae60' : '#e74c3c'}; background: ${vysledek >= 0 ? '#f0fff4' : '#fff5f5'};">
+                VÝSLEDEK ZÚČTOVÁNÍ: <span style="color:${vysledek >= 0 ? '#27ae60' : '#e74c3c'}"><b>${vysledek >= 0 ? 'PŘEPLATEK' : 'NEDOPLATEK'} ${Math.abs(vysledek).toFixed(2)} Kč</b></span>
+            </div>
+
+            <div style="text-align:center; margin-top:20px;">
+                ${qrHtml}
+            </div>
+
+            <div style="margin-top:50px; font-size:11px; color:#888; border-top:1px solid #eee; padding-top:10px; text-align:center;">
+                Vyúčtování vystaveno dne ${new Date().toLocaleDateString('cs-CZ')} | AMK TRABANT PLZEŇ
+            </div>
+        </div>
+    </body></html>`);
+    w.document.close();
+}
 
     function previewSharedCosts() {
         const y = document.getElementById('shared-year').value; const sh = calculateTenantShares(y); if(!sh) return alert("Data nejsou.");
