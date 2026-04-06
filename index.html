@@ -254,20 +254,9 @@
         </div>
         
         <div class="grid">
-    <div>
-        <label>Měsíční nájemné (Kč)</label>
-        <input type="number" id="f-najem">
-    </div>
-    <div>
-        <label>Měsíční zálohy (Kč)</label>
-        <input type="number" id="f-zalohy">
-    </div>
-</div>
-<div style="background: #fff4e5; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
-    <label style="color: #d35400;">Datum platnosti této ceny (od)</label>
-    <input type="date" id="f-rent_start">
-    <small style="color: #666;">Zadejte, pokud měníte cenu. Pokud pole necháte prázdné, použije se dnešek.</small>
-</div>
+            <div><label>Měsíční nájemné (Kč)</label><input type="number" id="f-najem"></div>
+            <div><label>Měsíční zálohy (Kč)</label><input type="number" id="f-zalohy"></div>
+        </div>
         
         <div class="grid" style="margin-bottom: 15px;">
             <div><label>Datum původní smlouvy</label><input type="date" id="f-datum_smlouvy"></div>
@@ -312,34 +301,6 @@
     let DATA = null; let USER = null; let CUR_EMAIL = "";
     const mesiceNázvy = ["", "Leden", "Únor", "Březen", "Duben", "Květen", "Červen", "Červenec", "Srpen", "Září", "Říjen", "Listopad", "Prosinec"];
 
-    function getPriceForDate(tenant, history, checkDate) {
-    // Filtrujeme historii pro konkrétního nájemníka
-    const tenantHistory = history.filter(h => 
-        String(h.name).toLowerCase().trim() === String(tenant.name).toLowerCase().trim()
-    ).sort((a, b) => new Date(a.validfrom) - new Date(b.validfrom));
-
-    if (tenantHistory.length === 0) {
-        return Number(tenant.najem) + Number(tenant.zalohy);
-    }
-
-    // Najdeme poslední záznam, který je platný k danému datu
-    let validEntry = null;
-    for (let entry of tenantHistory) {
-        if (new Date(entry.validfrom) <= checkDate) {
-            validEntry = entry;
-        }
-    }
-
-    // Pokud jsme našli záznam platný k datu, použijeme ho
-    if (validEntry) {
-        return Number(validEntry.najem) + Number(validEntry.zalohy);
-    }
-
-    // Pokud je kontrolované datum STARŠÍ než první záznam v historii, 
-    // použijeme první (nejstarší) záznam v historii
-    return Number(tenantHistory[0].najem) + Number(tenantHistory[0].zalohy);
-}
-    
     function getNextId(dataList) {
         if (!dataList || dataList.length === 0) return 1;
         const ids = dataList.map(item => Number(item.id || item.ID)).filter(id => !isNaN(id)).sort((a, b) => a - b);
@@ -434,8 +395,9 @@
                     .filter(h => new Date(h.validfrom) <= datumVMesici)
                     .sort((a, b) => new Date(b.validfrom) - new Date(a.validfrom))[0];
 
-                // Místo původního ocekavano:
-                const ocekavano = getPriceForDate(t, DATA.renthistory, datumVMesici);
+                const ocekavano = platnaCena ? 
+                    (Number(platnaCena.najem) + Number(platnaCena.zalohy)) : 
+                    (Number(t.najem) + Number(t.zalohy));
 
                 const zaplaceno = paymentMap[`${String(t.name).trim().toLowerCase()}_${m}`] || 0;
                 
@@ -482,8 +444,7 @@
             .filter(h => new Date(h.validfrom) <= datumVMesici)
             .sort((a, b) => new Date(b.validfrom) - new Date(a.validfrom))[0];
 
-        // Místo původního ocekavano:
-        const ocekavanoMesicne = getPriceForDate(t, DATA.renthistory, datumVMesici);
+        const ocekavanoMesicne = platnaCena ? (Number(platnaCena.najem) + Number(platnaCena.zalohy)) : (Number(t.najem) + Number(t.zalohy));
         
         let status = "";
         let barva = "";
@@ -980,8 +941,7 @@ async function sendTenantMessage(tenantName) {
             datum_smlouvy: document.getElementById('f-datum_smlouvy').value,
             datum_narozeni: document.getElementById('f-datum_narozeni').value,
             meterStart: mStartVal, 
-            meterEnd: mEndVal,
-            rent_start: document.getElementById('f-rent_start').value
+            meterEnd: mEndVal
         };
         const resp = await fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify({action:'saveTenant', payload:p}) });
         DATA = await resp.json(); renderAdminTable(); closeModal(); btn.innerText = "Uložit celou kartu";
