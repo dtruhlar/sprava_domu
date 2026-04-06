@@ -374,6 +374,8 @@
         const curM = new Date().getMonth() + 1;
         const curY = new Date().getFullYear();
         const tBody = document.getElementById('tBody');
+        
+        // Mapování plateb zůstává stejné
         const paymentMap = {};
         (DATA.payments || []).forEach(p => {
             if (p.year == curY) {
@@ -381,17 +383,47 @@
                 paymentMap[key] = (paymentMap[key] || 0) + Number(p.amount || 0);
             }
         });
+
         tBody.innerHTML = (DATA.tenants || []).map(t => {
             let dluzneMesice = [];
-            const ocekavano = Number(t.najem || 0) + Number(t.zalohy || 0);
-            if (ocekavano > 0) {
-                for(let m = 1; m <= curM; m++) {
-                    const zaplaceno = paymentMap[`${String(t.name).trim().toLowerCase()}_${m}`] || 0;
-                    if(zaplaceno < ocekavano) dluzneMesice.push(mesiceNázvy[m]);
+            
+            // Filtrujeme historii pro konkrétního nájemníka
+            const mojeHistorie = (DATA.renthistory || []).filter(h => 
+                String(h.name).toLowerCase().trim() === String(t.name).toLowerCase().trim()
+            );
+
+            // Procházíme měsíce do aktuálního
+            for (let m = 1; m <= curM; m++) {
+                const datumVMesici = new Date(curY, m - 1, 28);
+                
+                // Najdeme cenu platnou v daném měsíci
+                let platnaCena = mojeHistorie
+                    .filter(h => new Date(h.validfrom) <= datumVMesici)
+                    .sort((a, b) => new Date(b.validfrom) - new Date(a.validfrom))[0];
+
+                // Pokud historie neexistuje, použijeme aktuální data z karty
+                const ocekavano = platnaCena ? 
+                    (Number(platnaCena.najem) + Number(platnaCena.zalohy)) : 
+                    (Number(t.najem) + Number(t.zalohy));
+
+                const zaplaceno = paymentMap[`${String(t.name).trim().toLowerCase()}_${m}`] || 0;
+                
+                // Pokud měl platit víc než 0 a zaplatil méně, přidáme dluh
+                if (ocekavano > 0 && zaplaceno < ocekavano) {
+                    dluzneMesice.push(mesiceNázvy[m]);
                 }
             }
-            const badges = dluzneMesice.length === 0 ? `<span class="badge b-ok">✓ OK</span>` : dluzneMesice.map(m => `<span class="badge b-wait">❌ ${m}</span>`).join('');
-            return `<tr><td><strong>${t.name}</strong><br><span style="font-size:11px;color:#7f8c8d">${t.typ==='komerce'?'Komerce':'Byt'} | ${t.email||''}</span></td><td>${t.unit||'-'}</td><td>${badges}</td><td><button class="btn btn-blue" onclick="openEdit(${t.rowidx})">Karta</button></td></tr>`;
+
+            const badges = dluzneMesice.length === 0 ? 
+                `<span class="badge b-ok">✓ OK</span>` : 
+                dluzneMesice.map(m => `<span class="badge b-wait">❌ ${m}</span>`).join('');
+
+            return `<tr>
+                <td><strong>${t.name}</strong><br><span style="font-size:11px;color:#7f8c8d">${t.typ==='komerce'?'Komerce':'Byt'} | ${t.email||''}</span></td>
+                <td>${t.unit||'-'}</td>
+                <td>${badges}</td>
+                <td><button class="btn btn-blue" onclick="openEdit(${t.rowidx})">Karta</button></td>
+            </tr>`;
         }).join('');
     }
 
