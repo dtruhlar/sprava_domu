@@ -264,6 +264,7 @@
         </div>
         <div class="grid" style="margin-bottom: 15px;">
             <div><label>Pořadové číslo dodatku</label><input type="number" id="f-dodatek" placeholder="např. 1, 2..."></div>
+            <div><label>Datum narození (FO)</label><input type="date" id="f-datum_narozeni"></div>
         </div>
 
         <div id="meterSection" style="background:#f8f9fa; padding:15px; border-radius:6px; margin-bottom:15px"></div>
@@ -395,6 +396,10 @@
             document.getElementById('osm-container').innerHTML = ""; addOsmRow();
             document.getElementById('f-dph').checked = false; document.getElementById('f-typ').value = "byt"; toggleTypProstoru();
             document.getElementById('meterSection').innerHTML = `<label>Počáteční stav vodoměru</label><input type="number" id="f-meterStart">`;
+            document.getElementById('f-dodatek').value = "";
+            document.getElementById('f-datum_smlouvy').value = "";
+            document.getElementById('f-platnostdo').value = "";
+            document.getElementById('f-datum_narozeni').value = "";
         } else {
             const t = DATA.tenants.find(x => x.rowidx == idx);
             document.getElementById('f-rowidx').value = t.rowidx; document.getElementById('f-typ').value = t.typ || "byt"; toggleTypProstoru();
@@ -452,6 +457,25 @@
                     document.getElementById('f-datum_smlouvy').value = `${yyyy}-${mm}-${dd}`;
                 }
             }
+
+            if (t.datum_narozeni) {
+                let dStr = String(t.datum_narozeni).trim();
+                let pd = new Date(dStr);
+                if (dStr.includes('.')) {
+                    let parts = dStr.replace(/\s/g, '').split('.');
+                    if (parts.length === 3) {
+                        pd = new Date(`${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`);
+                    }
+                }
+                if (!isNaN(pd.getTime())) {
+                    let yyyy = pd.getFullYear();
+                    let mm = String(pd.getMonth() + 1).padStart(2, '0');
+                    let dd = String(pd.getDate()).padStart(2, '0');
+                    document.getElementById('f-datum_narozeni').value = `${yyyy}-${mm}-${dd}`;
+                }
+            } else {
+                document.getElementById('f-datum_narozeni').value = "";
+            }
             
             const mHist = (DATA.meters || []).filter(m => {
                 return String(m.name).toLowerCase() === String(t.name).toLowerCase() && !isNaN(parseFloat(String(m.koncovy).replace(',', '.')));
@@ -498,7 +522,13 @@
             `;
         }
 
-        const tenantIdInfo = t.typ === 'komerce' ? `IČO: ${t.ico}<br>zastoupena: ${t.jednatel}` : `Narozen/a: ..............................`;
+        let dobStr = "..............................";
+        if (t.datum_narozeni) {
+            const d = new Date(t.datum_narozeni);
+            if (!isNaN(d.getTime())) dobStr = `${d.getDate()}. ${d.getMonth() + 1}. ${d.getFullYear()}`;
+        }
+
+        const tenantIdInfo = t.typ === 'komerce' ? `IČO: ${t.ico}<br>zastoupena: ${t.jednatel}` : `Narozen/a: ${dobStr}`;
         const tenantName = t.typ === 'komerce' ? `<b>${t.name}</b>` : `pan/paní <b>${t.name}</b>`;
 
         const html = `
@@ -513,12 +543,19 @@
                 .signatures { display: flex; justify-content: space-between; margin-top: 80px; }
                 .sig-box { width: 45%; text-align: center; }
                 .sig-line { border-bottom: 1px dotted #000; margin-bottom: 5px; height: 40px; }
+                .btn { padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px; margin: 0 5px; color: white; transition: 0.2s; display: inline-block; }
+                .btn:hover { opacity: 0.9; }
+                .btn-blue { background: #3498db; }
+                .btn-green { background: #27ae60; }
+                .btn-orange { background: #e67e22; }
                 @media print { body { padding: 0; } .no-print { display: none; } }
             </style>
         </head>
         <body>
             <div class="no-print" style="text-align: center; margin-bottom: 20px; padding: 15px; background: #f4f7f6; border-radius: 8px;">
-                <button onclick="window.print()" style="padding: 10px 20px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">🖨️ Vytisknout dodatek</button>
+                <button class="btn btn-blue" onclick="window.print()">🖨️ Vytisknout dodatek</button>
+                <button class="btn btn-orange" id="btnDrive" onclick="saveToDrive()">☁️ Uložit na Google Disk</button>
+                <button class="btn btn-green" id="btnPortal" onclick="saveToPortal()">📁 Odeslat do portálu (Smlouvy)</button>
             </div>
 
             <h2>Dodatek č. ${dodatekNum} k nájemní smlouvě<br>ze dne ${origDate}</h2>
@@ -564,6 +601,50 @@
                     ${tenantName}
                 </div>
             </div>
+
+            <script>
+                const API_URL = "${SCRIPT_URL}";
+                
+                async function saveToDrive() {
+                    const btn = document.getElementById('btnDrive');
+                    btn.innerText = "Ukládám na Disk..."; btn.disabled = true;
+                    try {
+                        const htmlContent = document.documentElement.outerHTML;
+                        const resp = await fetch(API_URL, { 
+                            method: 'POST', 
+                            body: JSON.stringify({ 
+                                action: 'saveAddendumToDrive',
+                                name: "${t.name}",
+                                dodatekNum: "${dodatekNum}",
+                                html: htmlContent 
+                            }) 
+                        });
+                        const res = await resp.json();
+                        if(res.success) { alert("Úspěšně uloženo na Google Disk!"); btn.innerText = "✓ Uloženo na Disk"; }
+                        else { alert("Chyba při ukládání na Disk."); btn.innerText = "☁️ Zkusit uložit znovu"; btn.disabled = false; }
+                    } catch(e) { alert("Chyba spojení se serverem."); btn.innerText = "☁️ Zkusit uložit znovu"; btn.disabled = false; }
+                }
+
+                async function saveToPortal() {
+                    const btn = document.getElementById('btnPortal');
+                    btn.innerText = "Odesílám do portálu..."; btn.disabled = true;
+                    try {
+                        const htmlContent = document.documentElement.outerHTML;
+                        const resp = await fetch(API_URL, { 
+                            method: 'POST', 
+                            body: JSON.stringify({ 
+                                action: 'saveAddendumToPortal',
+                                name: "${t.name}",
+                                dodatekNum: "${dodatekNum}",
+                                html: htmlContent 
+                            }) 
+                        });
+                        const res = await resp.json();
+                        if(res.success) { alert("Úspěšně odesláno do portálu nájemníka!"); btn.innerText = "✓ Odesláno do portálu"; }
+                        else { alert("Chyba při odesílání."); btn.innerText = "📁 Zkusit odeslat znovu"; btn.disabled = false; }
+                    } catch(e) { alert("Chyba spojení se serverem."); btn.innerText = "📁 Zkusit odeslat znovu"; btn.disabled = false; }
+                }
+            <\/script>
         </body>
         </html>
         `;
@@ -615,6 +696,7 @@
             platnostdo: document.getElementById('f-platnostdo').value, 
             dodatek: document.getElementById('f-dodatek').value,
             datum_smlouvy: document.getElementById('f-datum_smlouvy').value,
+            datum_narozeni: document.getElementById('f-datum_narozeni').value,
             meterStart: mStartVal, 
             meterEnd: mEndVal
         };
@@ -946,5 +1028,3 @@
     }
     function closeModal() { document.getElementById('modal').style.display = 'none'; }
 </script>
-</body>
-</html>
