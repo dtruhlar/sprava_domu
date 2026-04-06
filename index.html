@@ -392,10 +392,9 @@
             document.getElementById('f-telefon').value = t.telefon || ""; document.getElementById('f-najem').value = t.najem || 0;
             document.getElementById('f-zalohy').value = t.zalohy || 0;
             
-            // OSM Načítání historie
             document.getElementById('osm-container').innerHTML = "";
             try {
-                let osmData = t.osm_history || t.osmhistory || "[]";
+                let osmData = t.osm_history || t.osmhistory || t.osm_hystory || "[]";
                 let osm = JSON.parse(osmData);
                 if (typeof osm === 'string') osm = JSON.parse(osm);
                 
@@ -403,21 +402,28 @@
                 else osm.forEach(r => addOsmRow(r.rok, r.osoby, r.mesice));
             } catch(e) { addOsmRow(); }
 
-            // BEZPEČNÉ NAČÍTÁNÍ DATA BEZ POSUNU ČASOVÝCH PÁSEM
             if (t.platnostdo) {
-                let pd = new Date(t.platnostdo);
+                let dStr = String(t.platnostdo).trim();
+                let pd = new Date(dStr);
+                if (dStr.includes('.')) {
+                    let parts = dStr.replace(/\s/g, '').split('.');
+                    if (parts.length === 3) {
+                        pd = new Date(`${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`);
+                    }
+                }
                 if (!isNaN(pd.getTime())) {
                     let yyyy = pd.getFullYear();
                     let mm = String(pd.getMonth() + 1).padStart(2, '0');
                     let dd = String(pd.getDate()).padStart(2, '0');
                     document.getElementById('f-platnostdo').value = `${yyyy}-${mm}-${dd}`;
-                } else {
-                    document.getElementById('f-platnostdo').value = t.platnostdo;
                 }
             }
             
-            const mHist = (DATA.meters || []).filter(m => String(m.name).toLowerCase() === String(t.name).toLowerCase());
-            const last = mHist[mHist.length-1];
+            // OPRAVA VODOMĚRŮ: Filtrujeme POUZE záznamy, kde je koncový stav skutečné číslo (Ignoruje to #NUM!)
+            const mHist = (DATA.meters || []).filter(m => {
+                return String(m.name).toLowerCase() === String(t.name).toLowerCase() && !isNaN(parseFloat(String(m.koncovy).replace(',', '.')));
+            });
+            const last = mHist.length > 0 ? mHist[mHist.length-1] : null;
             document.getElementById('meterSection').innerHTML = last ? `<div class="grid"><div><label>Minulý stav vodoměru</label><input id="f-meterStart" value="${last.koncovy}" readonly style="background:#eee"></div><div><label>Nový stav vodoměru</label><input type="number" id="f-meterEnd"></div></div>` : `<label>Počáteční stav vodoměru</label><input type="number" id="f-meterStart">`;
         }
         document.getElementById('modal').style.display = 'block';
@@ -434,11 +440,27 @@
 
         const btn = document.getElementById('saveBtn'); btn.innerText = "Ukládám...";
         const isNew = !document.getElementById('f-rowidx').value;
+        
+        // OPRAVA UKLÁDÁNÍ VODOMĚRŮ: Zajištění převodu desetinné čárky a kontrola platnosti
+        let mStartVal = document.getElementById('f-meterStart')?.value || "";
+        let mEndVal = document.getElementById('f-meterEnd')?.value || "";
+        
+        mStartVal = String(mStartVal).replace(',', '.');
+        mEndVal = String(mEndVal).replace(',', '.');
+        
+        // Pokud není nová hodnota vůbec vyplněná, nebo není číslo (je to blbost), vynutíme prázdné proměnné - Backend (Code.gs) tak zápis přeskočí!
+        if (mEndVal.trim() === "" || isNaN(parseFloat(mEndVal))) {
+            mStartVal = ""; 
+            mEndVal = "";
+        }
+
         const p = {
             id: isNew ? getNextId(DATA.tenants) : "",
             rowidx: document.getElementById('f-rowidx').value, typ: document.getElementById('f-typ').value, name: document.getElementById('f-name').value, jednatel: document.getElementById('f-jednatel').value, ico: document.getElementById('f-ico').value, dph: document.getElementById('f-dph').checked ? "Ano" : "Ne", plocha: document.getElementById('f-plocha').value, unit: document.getElementById('f-unit').value, vs: document.getElementById('f-vs').value, street: document.getElementById('f-street').value, city: document.getElementById('f-city').value, zip: document.getElementById('f-zip').value, email: document.getElementById('f-email').value, telefon: document.getElementById('f-telefon').value, najem: document.getElementById('f-najem').value, zalohy: document.getElementById('f-zalohy').value, 
             osm_history: JSON.stringify(osmRows),
-            platnostdo: document.getElementById('f-platnostdo').value, meterStart: document.getElementById('f-meterStart')?.value || "", meterEnd: document.getElementById('f-meterEnd')?.value || ""
+            platnostdo: document.getElementById('f-platnostdo').value, 
+            meterStart: mStartVal, 
+            meterEnd: mEndVal
         };
         const resp = await fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify({action:'saveTenant', payload:p}) });
         DATA = await resp.json(); renderAdminTable(); closeModal(); btn.innerText = "Uložit celou kartu";
@@ -527,7 +549,7 @@
         const tenantsOSM = (DATA.tenants || []).map(t => {
             let osm = 0; 
             try { 
-                let osmData = t.osm_history || t.osmhistory || "[]";
+                let osmData = t.osm_history || t.osmhistory || t.osm_hystory || "[]";
                 let h = JSON.parse(osmData);
                 if (typeof h === 'string') h = JSON.parse(h); 
                 
