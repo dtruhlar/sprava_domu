@@ -1265,30 +1265,28 @@ async function sendTenantMessage(tenantName) {
     }
 
     // Pomocná funkce pro generování QR kódu pro doplatek v nájemnickém portálu
-    function generateDoplatekQR(castka, mesic, jednotka) {
-        const currentYear = new Date().getFullYear().toString();
-        // VS: Rok + 8800 + číslo jednotky padded na 2 místa
-        const vs = currentYear + "8800" + String(jednotka || "").replace(/\D/g,"").padStart(2,'0');
-        const zprava = "Doplatek " + mesic;
-        const qrUrl = `https://api.paylibo.com/paylibo/generator/czech/image?accountNumber=2401555604&bankCode=2010&amount=${castka}&vs=${vs}&currency=CZK&message=${encodeURIComponent(zprava)}`;
+    function generateDoplatekQR(castka, mesicIdx, jednotka) {
+    const currentYear = new Date().getFullYear().toString();
+    const vs = currentYear + "9900" + String(jednotka || "").replace(/\D/g,"").padStart(2,'0');
+    
+    // Najdeme index měsíce (např. "Duben" -> 4)
+    const mIndex = mesiceNázvy.indexOf(mesicIdx); 
+    const zprava = `Doplatek ${mIndex}/${currentYear}`; 
+    
+    const qrUrl = `https://api.paylibo.com/paylibo/generator/czech/image?accountNumber=2401555604&bankCode=2010&amount=${castka}&vs=${vs}&currency=CZK&message=${encodeURIComponent(zprava)}`;
 
-        const w = window.open("", "_blank", "width=420,height=580");
-        w.document.write(`
-            <html><body style="font-family:'Segoe UI',sans-serif; text-align:center; padding:20px; color:#333;">
-                <h3 style="color:#2c3e50">Úhrada nedoplatku - ${mesic}</h3>
-                <img src="${qrUrl}" style="max-width:250px; margin:20px 0; border: 1px solid #eee; padding: 10px; border-radius: 8px;">
-                <div style="background:#f8f9fa; padding:15px; border-radius:8px; text-align:left; font-size:14px; border: 1px solid #ddd;">
-                    <p style="margin:5px 0;"><b>Účet:</b> 2401555604/2010</p>
-                    <p style="margin:5px 0;"><b>Částka:</b> <span style="color:#e74c3c; font-weight:bold;">${castka} Kč</span></p>
-                    <p style="margin:5px 0;"><b>Var. symbol:</b> ${vs}</p>
-                    <p style="margin:5px 0;"><b>Zpráva:</b> ${zprava}</p>
-                </div>
-                <p style="font-size:12px; color:#7f8c8d; margin-top:20px;">Po provedení platby dojde k jejímu spárování s evidencí během několika dní.</p>
-                <button onclick="window.close()" style="margin-top:10px; padding:10px 25px; background:#3498db; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">Zavřít okno</button>
-            </body></html>
-        `);
-        w.document.close();
-    }
+    // ... zbytek funkce window.open (stejný jako minule) ...
+    const w = window.open("", "_blank", "width=420,height=580");
+    w.document.write(`<html><body style="font-family:sans-serif; text-align:center; padding:20px;">
+        <h3>Úhrada nedoplatku - ${mesicIdx}</h3>
+        <img src="${qrUrl}" style="max-width:250px; margin:20px 0;">
+        <div style="background:#f8f9fa; padding:15px; border-radius:8px; text-align:left; border:1px solid #ddd;">
+            <b>Částka:</b> ${castka} Kč<br><b>VS:</b> ${vs}<br><b>Zpráva:</b> ${zprava}
+        </div>
+        <button onclick="window.close()" style="margin-top:20px; padding:10px 20px;">Zavřít</button>
+    </body></html>`);
+    w.document.close();
+}
 
     function previewSharedCosts() {
         const y = document.getElementById('shared-year').value; const sh = calculateTenantShares(y); if(!sh) return alert("Data nejsou.");
